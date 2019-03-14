@@ -1,0 +1,19 @@
+{
+    "name": "jbuncle/automatic-semver",
+    "type": "project",
+    "require": {
+        "nikic/php-parser": "^4.2@dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "AutomaticSemver\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "James Buncle",
+            "email": "jbuncle@hotmail.com"
+        }
+    ],
+    "minimum-stability": "dev"
+}
