@@ -8,8 +8,6 @@ namespace AutomaticSemver;
 
 use AutomaticSemver\Objects\Collection;
 use Exception;
-use PhpParser\Error;
-use PhpParser\NodeDumper;
 use PhpParser\ParserFactory;
 
 /**
@@ -34,7 +32,8 @@ class SignatureSearch {
                     $signatures[] = $signature;
                 }
             } catch (Exception $ex) {
-                throw new Exception("Failed to process '$file'", 0, $ex);
+                $filepath = $file->getPath();
+                throw new Exception("Failed to process '$filepath'", 0, $ex);
             }
         }
         return $signatures;

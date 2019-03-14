@@ -1,0 +1,7 @@
+<#if licenseFirst??>
+${licenseFirst}
+</#if>
+${licensePrefix}Copyright (C) 2019 James Buncle (https://jbuncle.co.uk) - All Rights Reserved
+<#if licenseLast??>
+${licenseLast}
+</#if>

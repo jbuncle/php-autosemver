@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (C) 2019 CyberPear (https://www.cyberpear.co.uk) - All Rights Reserved
+ * Copyright (C) 2019 James Buncle (https://jbuncle.co.uk)  - All Rights Reserved
  */
 
 namespace AutomaticSemver;
@@ -28,30 +28,34 @@ class SemVerDiff {
         $signatureSearch = new SignatureSearch();
         $gitSearch = new GitSearch();
 
-        $startFiles = $gitSearch->findFiles($this->root, $this->paths,
-                $startRevision);
+        $startFiles = $gitSearch->findFiles($this->root, $this->paths, $startRevision);
         $prevSignatures = $signatureSearch->getSignatures($startFiles);
 
-        $endFiles = $gitSearch->findFiles($this->root, $this->paths,
-                $endRevision);
+        $endFiles = $gitSearch->findFiles($this->root, $this->paths, $endRevision);
         $currentSignatures = $signatureSearch->getSignatures($endFiles);
 
-        $new = array_diff($currentSignatures, $prevSignatures);
+        $unchangedSignatures = array_intersect($currentSignatures, $prevSignatures);
+        $newSignatures = array_diff($currentSignatures, $prevSignatures);
+        $removedSignatures = array_diff($prevSignatures, $currentSignatures);
+
+        echo "Unchanged:\n";
+        foreach ($unchangedSignatures as $unchangedSignature) {
+            echo "\t\\$unchangedSignature\n";
+        }
 
         echo "New:\n";
-        foreach ($new as $newSig) {
-            echo "\t$newSig\n";
+        foreach ($newSignatures as $newSignature) {
+            echo "\t\\$newSignature\n";
         }
-        $removed = array_diff($prevSignatures, $currentSignatures);
 
         echo "Removed:\n";
-        foreach ($removed as $newSig) {
-            echo "\t$newSig\n";
+        foreach ($removedSignatures as $removedSignature) {
+            echo "\t\\$removedSignature\n";
         }
 
-        if (!empty($removed)) {
+        if (!empty($removedSignatures)) {
             return "MAJOR";
-        } else if (!empty($new)) {
+        } else if (!empty($newSignatures)) {
             return "MINOR";
         } else {
             return "PATCH";

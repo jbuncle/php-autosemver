@@ -1,17 +1,17 @@
 <?php
 
 /*
- * Copyright (C) 2019 James Buncle (https://www.jbuncle.co.uk) - All Rights Reserved
+ * Copyright (C) 2019 James Buncle (https://jbuncle.co.uk) - All Rights Reserved
  */
 
 namespace AutomaticSemver\Objects;
 
 /**
- * Description of ConstObject
+ * Description of ClassConstObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-class ConstObject
+class ClassConstObject
         implements Signatures {
 
     /**
@@ -28,9 +28,16 @@ class ConstObject
         $sigs = [];
 
         foreach ($this->constObj->consts as $const) {
-            $sigs [] = "::$const->name";
+            $sigs [] = "::$const->name = {$this->getValueString($const->value)}";
         }
         return $sigs;
+    }
+
+    private function getValueString($value): string {
+        if ($value instanceof \PhpParser\Node\Scalar\String_) {
+            return "'" . $value->value . "'";
+        }
+        return (string) $value->value;
     }
 
 }

@@ -11,6 +11,10 @@ there are edge cases that won't be picked up (e.g. changes inherited from parent
 Arguably, even with edge cases, this is better than manually maintaining semantic versions
 since such processes take time and are prone to human error.
 
+== Known Edge Cases ==
+* Changing to variadics will show as breaking change
+* Inherited changes as a result of updates to parent classes that exist outside search directory won't be detected
+
 == Improvements ==
 
 * Inspect composer dependencies (if a dependency has incremented, then this project should match the increment)

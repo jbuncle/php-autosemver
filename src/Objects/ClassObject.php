@@ -6,61 +6,47 @@
 
 namespace AutomaticSemver\Objects;
 
+
 /**
  * Description of ClassObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
 class ClassObject
-        implements Signatures {
+        extends AbstractType {
 
-    /**
-     *
-     * @var \PhpParser\Node\Stmt\Class_ 
-     */
-    private $classObj;
-
-    public function __construct(\PhpParser\Node\Stmt\Class_ $classObj) {
-        $this->classObj = $classObj;
+    public function __construct(NamespaceObject $namespaceObj, \PhpParser\Node\Stmt\Class_ $obj) {
+        parent::__construct($namespaceObj, $obj);
     }
 
-    private function getPath() {
+    public function getSignatures(): array {
+        $signatures = parent::getSignatures();
+        if (!$this->hasConstructor()) {
+            // Add default constructor
+            $signatures[] = $this->getPath() . '->__construct()';
+        }
+        return $signatures;
+    }
+
+    protected function getPath() {
         $sig = '';
-        if ($this->classObj->isAbstract() || $this->classObj->isFinal()) {
-            $sig .= ($this->classObj->isAbstract()) ? 'abstract ' : '';
-            $sig .= ($this->classObj->isFinal()) ? 'final ' : '';
-            $sig .= (string) $this->classObj->name;
+        if ($this->obj->isAbstract() || $this->obj->isFinal()) {
+            $sig .= ($this->obj->isAbstract()) ? 'abstract ' : '';
+            $sig .= ($this->obj->isFinal()) ? 'final ' : '';
+            $sig .= parent::getPath();
             return '{' . $sig . '}';
         } else {
-            return (string) $this->classObj->name;
+            return (string) $this->obj->name;
         }
     }
 
     private function hasConstructor(): bool {
-        foreach ($this->getCollection()->getObjects() as $object) {
+        foreach ($this->getObjects() as $object) {
             if ($object instanceof ClassMethodObject && $object->getName() === '__construct') {
                 return true;
             }
         }
         return false;
-    }
-
-    private function getCollection(): Collection {
-        return new Collection($this->classObj->stmts); ;
-    }
-
-    public function getSignatures(): array {
-        $signatures = [];
-        $collection = $this->getCollection();
-        if (!$this->hasConstructor()) {
-            // Add default constructor
-            $signatures[] = $this->getPath() . '->__construct()';
-        }
-        foreach ($collection->getSignatures() as $signature) {
-            $signatures[] = $this->getPath() . $signature;
-        }
-
-        return $signatures;
     }
 
 }

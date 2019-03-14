@@ -24,14 +24,6 @@ class Collection
         $this->stmts = $stmts;
     }
 
-    public function getObjects(): array {
-        $objects = [];
-        foreach ($this->stmts as $stmt) {
-            $objects[] = $this->stmtToObjs($stmt);
-        }
-        return $objects;
-    }
-
     public function getSignatures(): array {
         $signatures = [];
         foreach ($this->getObjects() as $obj) {
@@ -61,6 +53,14 @@ class Collection
         return in_array($class, $ignoreables);
     }
 
+    public function getObjects(): array {
+        $objects = [];
+        foreach ($this->stmts as $stmt) {
+            $objects[] = $this->stmtToObjs($stmt);
+        }
+        return $objects;
+    }
+
     /**
      * 
      * @param \PhpParser\Node\Stmt\Use_ $stmt
@@ -76,12 +76,8 @@ class Collection
             return new NamespaceObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Property) {
             return new PropertyObject($stmt);
-        } else if ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
-            return new ConstObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
             return new ClassObject($stmt);
-        } else if ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
-            return new ClassMethodObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
             return new InterfaceObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Use_) {

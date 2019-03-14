@@ -16,11 +16,18 @@ class ClassMethodObject
 
     /**
      *
+     * @var ClassObject
+     */
+    private $classObject;
+
+    /**
+     *
      * @var \PhpParser\Node\Stmt\ClassMethod 
      */
     private $classMethodObj;
 
-    function __construct(\PhpParser\Node\Stmt\ClassMethod $classMethodObj) {
+    function __construct(AbstractType $classObejct, \PhpParser\Node\Stmt\ClassMethod $classMethodObj) {
+        $this->classObject = $classObejct;
         $this->classMethodObj = $classMethodObj;
     }
 
@@ -87,11 +94,9 @@ class ClassMethodObject
             if ($param->variadic) {
                 $sig .= "...";
             }
-            if ($param->type !== null) {
-                $sig .= $this->getFullType($param->type) . '';
-            } else {
-                $sig .= 'mixed';
-            }
+
+            $sig .= $this->getFullType($param->type) . '';
+
             if ($param->default) {
                 if ($param->default instanceof \PhpParser\Node\Expr\Array_) {
                     $sig .= ' = [';
@@ -110,8 +115,15 @@ class ClassMethodObject
         return $sig;
     }
 
-    private function getFullType(string $type): string {
-        return $type;
+    private function getFullType($type): string {
+        if (empty($type) || $type === null) {
+            return 'mixed';
+        }
+
+        if ($type instanceof \PhpParser\Node\Name\FullyQualified) {
+            return '\\' . (string) $type;
+        }
+        return $this->classObject->getAbsoluteType($type);
     }
 
 }
