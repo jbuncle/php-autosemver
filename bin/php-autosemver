@@ -26,3 +26,4 @@ $excludePaths = ['vendor'];
 
 $semVerDiff = new SemVerDiff($root, $includePaths, $excludePaths);
 echo $semVerDiff->diff($startRevision, $endRevision, false);
+echo "\n"; // Stop odd % symbol in some bash windows
