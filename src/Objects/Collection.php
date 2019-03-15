@@ -49,6 +49,7 @@ class Collection
             \PhpParser\Node\Stmt\Echo_::class,
             \PhpParser\Node\Stmt\Foreach_::class,
             \PhpParser\Node\Stmt\Nop::class,
+            \PhpParser\Node\Stmt\Expression::class,
         ];
         return in_array($class, $ignoreables);
     }
@@ -74,6 +75,8 @@ class Collection
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             return new NamespaceObject($stmt);
+        } else if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
+            return new FunctionObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Property) {
             return new PropertyObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
