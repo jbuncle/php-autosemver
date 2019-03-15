@@ -29,8 +29,17 @@ class SemVerDiff {
 
     public function diff(string $startRevision, string $endRevision, bool $verbose): string {
         $filter = function(string $relPath): bool {
-            return self::startsWithAny($relPath, $this->includePaths) && !self::startsWithAny($relPath,
-                            $this->excludePaths);
+            if (!self::endsWith($relPath, '.php')) {
+                return false;
+            }
+            if (!empty($this->includePaths) && !self::startsWithAny($relPath, $this->includePaths)) {
+                return false;
+            }
+            if (!empty($this->includePaths) && self::startsWithAny($relPath, $this->excludePaths)) {
+                return false;
+            }
+
+            return true;
         };
         $signatureSearch = new SignatureSearch($filter);
         $gitSearch = new GitSearch($filter);
@@ -83,6 +92,15 @@ class SemVerDiff {
 
     private static function startsWith(string $str, string $prefix) {
         return $prefix === substr($str, 0, strlen($prefix));
+    }
+
+    private static function endsWith($haystack, $needle) {
+        $length = strlen($needle);
+        if ($length == 0) {
+            return true;
+        }
+
+        return (substr($haystack, -$length) === $needle);
     }
 
 }

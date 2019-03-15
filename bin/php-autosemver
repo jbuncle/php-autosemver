@@ -21,7 +21,7 @@ if (array_key_exists(2, $argv)) {
     $endRevision = 'HEAD';
 }
 
-$includePaths = ['src'];
+$includePaths = [];
 $excludePaths = ['vendor'];
 
 $semVerDiff = new SemVerDiff($root, $includePaths, $excludePaths);

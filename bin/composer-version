@@ -1,8 +1,10 @@
 #!/usr/bin/env php
 <?php
-
 /*
  * Copyright (C) 2019 James Buncle (https://www.jbuncle.co.uk) - All Rights Reserved
+ * 
+ * Tool for inspecting and updating composer.json version.
+ * Also provides the ability to increment a semver version based on change level (MAJOR, MINOR or PATCH).
  */
 
 function getVersion(string $composerJson, string $defaultVersion): string {
