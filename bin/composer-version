@@ -1,0 +1,84 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * Copyright (C) 2019 James Buncle (https://www.jbuncle.co.uk) - All Rights Reserved
+ */
+
+function getVersion(string $composerJson, string $defaultVersion): string {
+    $composerJsonStr = file_get_contents($composerJson);
+    $content = json_decode($composerJsonStr, true);
+
+    $version = '';
+    if (array_key_exists('version', $content)) {
+        $version = $content['version'];
+    } else {
+        $version = $defaultVersion;
+    }
+    return trim($version);
+}
+
+function setVersion(string $composerJson, string $version): string {
+
+    $composerJsonStr = file_get_contents($composerJson);
+    $content = json_decode($composerJsonStr, true);
+
+    $content['version'] = $version;
+
+    $newComposerJsonStr = json_encode($content, JSON_PRETTY_PRINT);
+    file_put_contents($composerJson, $newComposerJsonStr);
+    return $version;
+}
+
+function getInc(string $version, string $incrementType): string {
+
+    $parts = explode('.', $version);
+
+    if ($incrementType === 'MAJOR') {
+        $parts[0] = intval($parts[0]) + 1;
+        $parts[1] = '0';
+        $parts[2] = '0';
+    } else if ($incrementType === 'MINOR') {
+
+        $parts[1] = intval($parts[1]) + 1;
+        $parts[2] = '0';
+    } else if ($incrementType === 'PATCH') {
+        $parts[2] = intval($parts[2]) + 1;
+    } else {
+        throw new Exception("Unexpected version increment type '$incrementType'");
+    }
+
+    return implode('.', $parts);
+}
+
+function getComposerJsonPath(): string {
+    return __DIR__ . '/composer.json';
+}
+
+function go(array $argv): string {
+
+    if ($argv[1] === '--get') {
+        $composerJson = getComposerJsonPath();
+        return getVersion($composerJson, '1.0.0');
+    } else if ($argv[1] === '--set') {
+        $version = $argv[2];
+        $composerJson = getComposerJsonPath();
+        return setVersion($composerJson, $version);
+    } else if ($argv[1] === '--inc') {
+        $version = $argv[2];
+        $incrementType = $argv[3];
+
+        return getInc($version, $incrementType);
+    } else if ($argv[1] === '--getinc') {
+        $composerJson = getComposerJsonPath();
+        $version = getVersion($composerJson, '1.0.0');
+        $incrementType = $argv[2];
+
+        return getInc($version, $incrementType);
+    } else {
+        throw new Exception("Specify --get, --set, --inc, --getinc");
+    }
+}
+
+echo go($argv);
+echo "\n";

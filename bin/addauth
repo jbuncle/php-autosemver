@@ -1,0 +1,52 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * Copyright (C) 2019 James Buncle (https://www.jbuncle.co.uk) - All Rights Reserved
+ */
+$url = $argv[1];
+$user = $argv[2];
+$pass = $argv[3];
+
+function buildUrl(array $parsed) {
+    $url = '';
+
+    if (isset($parsed['scheme'])) {
+        $url .= $parsed['scheme'] . '://';
+    }
+    if (isset($parsed['user']) && isset($parsed['pass'])) {
+        $url .= $parsed['user'] . ':' . $parsed['pass'] . '@';
+    } else if (isset($parsed['user'])) {
+        $url .= $parsed['user'] . '@';
+    }
+    if (isset($parsed['host'])) {
+        $url .= $parsed['host'];
+    }
+    if (isset($parsed['port'])) {
+        $url .= ':' . $parsed['port'];
+    }
+    if (isset($parsed['path'])) {
+        $url .= $parsed['path'];
+    }
+    if (isset($parsed['query'])) {
+        $url .= '?' . $parsed['query'];
+    }
+    if (isset($parsed['fragment'])) {
+        $url .= '#' . $parsed['fragment'];
+    }
+
+    return $url;
+}
+
+function addAuth($url, $user, $pass) {
+    $urlParts = parse_url($url);
+    if ($urlParts === false) {
+        throw new Exception("Bad url '$url'");
+    }
+    $urlParts['user'] = $user;
+    $urlParts['pass'] = $pass;
+    return buildUrl($urlParts);
+}
+
+echo addAuth($url, $user, $pass);
+echo "\n";
