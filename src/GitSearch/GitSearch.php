@@ -6,10 +6,6 @@
 
 namespace AutomaticSemver\GitSearch;
 
-use Exception;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-
 /**
  * GitSearch
  *
@@ -18,35 +14,33 @@ use RecursiveIteratorIterator;
 class GitSearch {
 
     /**
+     *
+     * @var callable
+     */
+    private $filter;
+
+    public function __construct(callable $filter) {
+        $this->filter = $filter;
+    }
+
+    /**
      * 
      * @param string $root
      * @return GitFile[]
      */
-    public function findFiles(string $root, array $paths, string $revision): array {
+    public function findFiles(string $root, string $revision): array {
         $cmd = "git ls-tree -r --name-only '$revision'";
+        $files = [];
         exec("cd $root ; $cmd", $files);
 
         $gitFiles = [];
         foreach ($files as $relPath) {
-            if (self::startsWithAny($relPath, $paths)) {
+            if (call_user_func($this->filter, (string) $relPath)) {
                 $gitFiles[] = new GitFile($root, $relPath, $revision);
             }
         }
 
         return $gitFiles;
-    }
-
-    private static function startsWithAny(string $str, array $prefixes) {
-        foreach ($prefixes as $prefix) {
-            if (self::startsWith($str, $prefix)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static function startsWith(string $str, string $prefix) {
-        return $prefix === substr($str, 0, strlen($prefix));
     }
 
 }

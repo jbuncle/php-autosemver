@@ -7,7 +7,7 @@
 namespace AutomaticSemver\Objects;
 
 /**
- * Description of UseObject
+ *  UseObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

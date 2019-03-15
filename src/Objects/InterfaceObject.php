@@ -8,7 +8,7 @@ namespace AutomaticSemver\Objects;
 
 
 /**
- * Description of ClassObject
+ *  ClassObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

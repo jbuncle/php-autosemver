@@ -11,7 +11,7 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
 /**
- * Description of ImageSearch
+ *  ImageSearch
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

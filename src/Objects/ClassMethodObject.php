@@ -7,7 +7,7 @@
 namespace AutomaticSemver\Objects;
 
 /**
- * Description of ClassMethodObject
+ *  ClassMethodObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
@@ -41,7 +41,10 @@ class ClassMethodObject
 
         $sigs = [];
         while (!empty($methodParams)) {
-            $sigs[] = $this->createSignatureForParams($methodParams);
+            $sigs[] = $this->createSignatureForParams($methodParams, true);
+            if (end($methodParams)->default) {
+                $sigs[] = $this->createSignatureForParams($methodParams, false);
+            }
             $lastParam = array_pop($methodParams);
             if (!isset($lastParam->default)) {
                 break;
@@ -50,14 +53,10 @@ class ClassMethodObject
         return $sigs;
     }
 
-    private function createSignatureForParams($methodParams): string {
+    private function createSignatureForParams($methodParams, bool $doDefault): string {
 
         $sig = '';
-        if ($this->classMethodObj->isStatic()) {
-            $sig .= '::';
-        } else {
-            $sig .= '->';
-        }
+
 
         $wrap = false;
 
@@ -72,22 +71,33 @@ class ClassMethodObject
         }
         $sig .= $this->getName();
         $sig .= '(';
-        $sig .= $this->createParameterSignature($methodParams);
+        $sig .= $this->createParameterSignature($methodParams, $doDefault);
         $sig = rtrim($sig, ' ');
         $sig = rtrim($sig, ',');
         $sig .= ')';
-        if ($wrap) {
-            return '{' . $sig . '}';
-        } else {
-            return $sig;
+
+        if ($this->classMethodObj->returnType) {
+            $sig .= ':' . $this->getFullType($this->classMethodObj->returnType);
         }
+
+        if ($wrap) {
+            $sig = '{' . $sig . '}';
+        }
+
+        if ($this->classMethodObj->isStatic()) {
+            $sig = '::' . $sig;
+        } else {
+            $sig = '->' . $sig;
+        }
+
+        return $sig;
     }
 
     public function getName(): string {
         return (string) $this->classMethodObj->name;
     }
 
-    private function createParameterSignature(array $methodParams) {
+    private function createParameterSignature(array $methodParams, bool $doDefault): string {
         $sig = '';
         foreach ($methodParams as $param) {
 
@@ -97,7 +107,7 @@ class ClassMethodObject
 
             $sig .= $this->getFullType($param->type) . '';
 
-            if ($param->default) {
+            if ($doDefault && $param->default) {
                 if ($param->default instanceof \PhpParser\Node\Expr\Array_) {
                     $sig .= ' = [';
                     foreach ($param->default->items as $item) {

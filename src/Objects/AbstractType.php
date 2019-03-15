@@ -9,7 +9,7 @@ namespace AutomaticSemver\Objects;
 use Exception;
 
 /**
- * Description of AbstractType
+ *  AbstractType
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

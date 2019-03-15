@@ -11,7 +11,7 @@ use AutomaticSemver\Objects\Signatures;
 use Exception;
 
 /**
- * Description of Collection
+ *  Collection
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

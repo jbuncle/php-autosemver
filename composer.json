@@ -1,6 +1,7 @@
 {
     "name": "jbuncle/automatic-semver",
     "type": "project",
+    "bin": [ "bin/php-autosemver"],
     "require": {
         "nikic/php-parser": "^4.2@dev"
     },

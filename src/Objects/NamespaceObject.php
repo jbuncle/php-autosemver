@@ -9,7 +9,7 @@ namespace AutomaticSemver\Objects;
 use Exception;
 
 /**
- * Description of newPHPClass
+ *  newPHPClass
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

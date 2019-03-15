@@ -17,21 +17,28 @@ class SemVerDiff {
 
     private $root;
 
-    private $paths;
+    private $includePaths;
 
-    public function __construct(string $root, array $paths) {
+    private $excludePaths;
+
+    public function __construct(string $root, array $includePaths, array $excludePaths) {
         $this->root = $root;
-        $this->paths = $paths;
+        $this->includePaths = $includePaths;
+        $this->excludePaths = $excludePaths;
     }
 
     public function diff(string $startRevision, string $endRevision): string {
-        $signatureSearch = new SignatureSearch();
-        $gitSearch = new GitSearch();
+        $filter = function(string $relPath): bool {
+            return self::startsWithAny($relPath, $this->includePaths) && !self::startsWithAny($relPath,
+                            $this->excludePaths);
+        };
+        $signatureSearch = new SignatureSearch($filter);
+        $gitSearch = new GitSearch($filter);
 
-        $startFiles = $gitSearch->findFiles($this->root, $this->paths, $startRevision);
+        $startFiles = $gitSearch->findFiles($this->root, $startRevision);
         $prevSignatures = $signatureSearch->getSignatures($startFiles);
 
-        $endFiles = $gitSearch->findFiles($this->root, $this->paths, $endRevision);
+        $endFiles = $gitSearch->findFiles($this->root, $endRevision);
         $currentSignatures = $signatureSearch->getSignatures($endFiles);
 
         $unchangedSignatures = array_intersect($currentSignatures, $prevSignatures);
@@ -60,6 +67,19 @@ class SemVerDiff {
         } else {
             return "PATCH";
         }
+    }
+
+    private static function startsWithAny(string $str, array $prefixes) {
+        foreach ($prefixes as $prefix) {
+            if (self::startsWith($str, $prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function startsWith(string $str, string $prefix) {
+        return $prefix === substr($str, 0, strlen($prefix));
     }
 
 }

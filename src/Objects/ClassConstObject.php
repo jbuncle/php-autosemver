@@ -7,7 +7,7 @@
 namespace AutomaticSemver\Objects;
 
 /**
- * Description of ClassConstObject
+ *  ClassConstObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

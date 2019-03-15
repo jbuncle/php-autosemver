@@ -1,9 +1,11 @@
 = PHP Automatic Semantic Versioning Detector =
 
+*Still in development*
+
 Compare two file paths or Git revisions to see whether the changes are considered
 MAJOR, MINOR or PATCH based on semantic versioning rules.
 
-Intended to be used in CI.
+Intended to be used in Continuous Integration (CI) Systems to help automate the versioning process.
 
 This does a basic/rough comparison, so, although it will largely work for most changes,
 there are edge cases that won't be picked up (e.g. changes inherited from parent classes outside the search path).
@@ -12,10 +14,35 @@ Arguably, even with edge cases, this is better than manually maintaining semanti
 since such processes take time and are prone to human error.
 
 == Known Edge Cases ==
-* Changing to variadics will show as breaking change
-* Inherited changes as a result of updates to parent classes that exist outside search directory won't be detected
+* Changing method signature to use variadics will show as breaking change, even if the change is backward compatible.
+* Inherited changes as a result of updates to parent classes/traits that exist outside search directory won't be detected
+* Adding a constructor with a signature that matches the parent will show as a breaking changes
+* Adding a return type will show as a breaking change, even if the type matches what was previously returned.
 
 == Improvements ==
+* Make more aware of composer
+ * Inspect composer dependencies (if a dependency has incremented, then this project should match the increment)
+ * Inspect autoload paths (don't worry about classes that can't/shouldn't be accessed)
 
-* Inspect composer dependencies (if a dependency has incremented, then this project should match the increment)
-* 
+== How it works ==
+
+The tool parses all the PHP files and generates a list of all the possible, accessible signatures (including variations)
+found. Once generated for both sets of changes, it will compared the signature lists looking for 
+removed signatures (MAJOR change), new signatures (MINOR change) or no signature changes (PATH).
+
+For example, the following in PHP code:
+
+```php
+ namespace MyNamespace;
+ class SomeClass {
+    public function aMethod($a, $b = 0) {}
+ }
+```
+
+Would be interpreted into 3 unique signature variations:
+
+```
+\MyNamespace\SomeClass->aMethod(mixed, mixed = 2)
+\MyNamespace\SomeClass->aMethod(mixed, mixed)
+\MyNamespace\SomeClass->aMethod(mixed)
+```
