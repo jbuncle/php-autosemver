@@ -1,5 +1,5 @@
 {
-    "name": "jbuncle/automatic-semver",
+    "name": "jbuncle/php-autosemver ",
     "type": "project",
     "bin": [ "bin/php-autosemver"],
     "require": {
