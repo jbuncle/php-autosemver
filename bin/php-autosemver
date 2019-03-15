@@ -20,4 +20,4 @@ $includePaths = ['src'];
 $excludePaths = ['vendor'];
 
 $semVerDiff = new SemVerDiff($root, $includePaths, $excludePaths);
-echo $semVerDiff->diff($startRevision, $endRevision);
+echo $semVerDiff->diff($startRevision, $endRevision, false);

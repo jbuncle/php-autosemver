@@ -27,7 +27,7 @@ class SemVerDiff {
         $this->excludePaths = $excludePaths;
     }
 
-    public function diff(string $startRevision, string $endRevision): string {
+    public function diff(string $startRevision, string $endRevision, bool $verbose): string {
         $filter = function(string $relPath): bool {
             return self::startsWithAny($relPath, $this->includePaths) && !self::startsWithAny($relPath,
                             $this->excludePaths);
@@ -45,19 +45,22 @@ class SemVerDiff {
         $newSignatures = array_diff($currentSignatures, $prevSignatures);
         $removedSignatures = array_diff($prevSignatures, $currentSignatures);
 
-        echo "Unchanged:\n";
-        foreach ($unchangedSignatures as $unchangedSignature) {
-            echo "\t\\$unchangedSignature\n";
-        }
+        if ($verbose) {
 
-        echo "New:\n";
-        foreach ($newSignatures as $newSignature) {
-            echo "\t\\$newSignature\n";
-        }
+            echo "Unchanged:\n";
+            foreach ($unchangedSignatures as $unchangedSignature) {
+                echo "\t\\$unchangedSignature\n";
+            }
 
-        echo "Removed:\n";
-        foreach ($removedSignatures as $removedSignature) {
-            echo "\t\\$removedSignature\n";
+            echo "New:\n";
+            foreach ($newSignatures as $newSignature) {
+                echo "\t\\$newSignature\n";
+            }
+
+            echo "Removed:\n";
+            foreach ($removedSignatures as $removedSignature) {
+                echo "\t\\$removedSignature\n";
+            }
         }
 
         if (!empty($removedSignatures)) {
