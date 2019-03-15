@@ -1,0 +1,20 @@
+
+stages:
+    - deploy
+    
+cache:
+  paths:
+    - vendor/
+
+deploy:
+    stage: deploy
+    image: docker.jbuncle.co.uk/jbuncle/php-docker
+    script:
+        - rm -rf nbproject
+        - composer install
+        - phplint
+        - composer install --no-dev
+        - composer nexus-push --url=https://nexus.jbuncle.co.uk/repository/composer-private/ --username=composer-publisher --password=$NEXUS_PASS  dev-master
+    only:
+        refs:
+            - master
