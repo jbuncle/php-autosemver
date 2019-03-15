@@ -1,7 +1,11 @@
 {
     "name": "jbuncle/php-autosemver",
     "type": "project",
-    "bin": [ "bin/php-autosemver"],
+    "bin": [
+         "bin/php-autosemver",
+         "bin/composer-version",
+         "bin/addauth"
+    ],
     "require": {
         "nikic/php-parser": "^4.2@dev"
     },
