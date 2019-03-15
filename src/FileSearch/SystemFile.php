@@ -9,7 +9,7 @@ namespace AutomaticSemver\FileSearch;
 use AutomaticSemver\FileI;
 
 /**
- *  File
+ * File
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

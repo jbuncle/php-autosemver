@@ -11,7 +11,7 @@ use Exception;
 use PhpParser\ParserFactory;
 
 /**
- *  SignatureSearch
+ * SignatureSearch
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

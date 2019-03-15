@@ -7,7 +7,7 @@
 namespace AutomaticSemver\Objects;
 
 /**
- *  PropertyObject
+ * PropertyObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

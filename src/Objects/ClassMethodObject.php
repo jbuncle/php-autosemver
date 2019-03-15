@@ -7,7 +7,7 @@
 namespace AutomaticSemver\Objects;
 
 /**
- *  ClassMethodObject
+ * ClassMethodObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */

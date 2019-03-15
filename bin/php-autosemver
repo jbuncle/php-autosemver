@@ -7,11 +7,14 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use AutomaticSemver\SemVerDiff;
 
-
 $root = getcwd();
 
 $startRevision = $argv[1];
-$endRevision = $argv[2];
+if (array_key_exists(2, $argv)) {
+    $endRevision = $argv[2];
+} else {
+    $endRevision = 'HEAD';
+}
 
 $includePaths = ['src'];
 $excludePaths = ['vendor'];
