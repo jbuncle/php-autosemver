@@ -6,7 +6,7 @@
 
 namespace AutomaticSemver;
 
-use AutomaticSemver\Objects\Collection;
+use AutomaticSemver\Objects\RootNamespaceObject;
 use Exception;
 use PhpParser\ParserFactory;
 
@@ -26,9 +26,9 @@ class SignatureSearch {
                 $parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
 
                 $ast = $parser->parse($code);
-                $collection = new Collection($ast);
+                $rootNamespace = new RootNamespaceObject($ast);
 
-                foreach ($collection->getSignatures() as $signature) {
+                foreach ($rootNamespace->getSignatures() as $signature) {
                     $signatures[] = $signature;
                 }
             } catch (Exception $ex) {

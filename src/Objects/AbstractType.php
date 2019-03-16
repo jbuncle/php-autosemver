@@ -6,6 +6,7 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\TypeLookup;
 use Exception;
 
 /**
@@ -14,7 +15,7 @@ use Exception;
  * @author James Buncle <jbuncle@hotmail.com>
  */
 abstract class AbstractType
-        implements Signatures {
+        implements Signatures, TypeLookup {
 
     /**
      *

@@ -32,15 +32,15 @@ class UseObject
     private function getName(\PhpParser\Node\Stmt\UseUse $useUse) {
         if ($useUse->alias) {
             return (string) $useUse->alias;
-        } 
+        }
         return end($useUse->name->parts);
     }
 
     public function getAbsoluteType($type) {
         foreach ($this->use->uses as $useUse) {
-            $name  = $this->getName($useUse);
+            $name = $this->getName($useUse);
             if ($name === $type) {
-                return '\\' . implode('\\', $useUse->name->parts);
+                return implode('\\', $useUse->name->parts);
             }
         }
     }

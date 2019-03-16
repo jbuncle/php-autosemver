@@ -12,20 +12,27 @@ namespace AutomaticSemver\Objects;
  * @author James Buncle <jbuncle@hotmail.com>
  */
 class FunctionObject
-        implements Signatures {
+        extends AbstractFunction {
 
-    /**
-     *
-     * @var \PhpParser\Node\Stmt\Function_ 
-     */
-    private $functionObj;
-
-    public function __construct(\PhpParser\Node\Stmt\Function_ $functionObj) {
-        $this->functionObj = $functionObj;
+    public function __construct(AbstractNamespace $classObject, \PhpParser\Node\FunctionLike $classMethodObj) {
+        parent::__construct($classObject, $classMethodObj);
     }
 
-    public function getSignatures(): array {
-        return [$this->functionObj->name];
+    protected function createSignatureForParams($methodParams, bool $doDefault): string {
+
+        $sig = '';
+        $sig .= $this->getName();
+        $sig .= '(';
+        $sig .= $this->createParameterSignature($methodParams, $doDefault);
+        $sig = rtrim($sig, ' ');
+        $sig = rtrim($sig, ',');
+        $sig .= ')';
+
+        if ($this->functionLikeObj->returnType) {
+            $sig .= ':' . $this->getFullType($this->functionLikeObj->returnType);
+        }
+
+        return $sig;
     }
 
 }

@@ -58,17 +58,17 @@ class SemVerDiff {
 
             echo "Unchanged:\n";
             foreach ($unchangedSignatures as $unchangedSignature) {
-                echo "\t\\$unchangedSignature\n";
+                echo "\t$unchangedSignature\n";
             }
 
             echo "New:\n";
             foreach ($newSignatures as $newSignature) {
-                echo "\t\\$newSignature\n";
+                echo "\t$newSignature\n";
             }
 
             echo "Removed:\n";
             foreach ($removedSignatures as $removedSignature) {
-                echo "\t\\$removedSignature\n";
+                echo "\t$removedSignature\n";
             }
         }
 
