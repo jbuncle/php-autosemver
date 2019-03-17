@@ -30,7 +30,6 @@ deploy_docker:
       - docker:dind
     script: 
         - rm -rf nbproject
-        - composer install --no-dev
         - docker build -t docker.jbuncle.co.uk/jbuncle/php-autosemver.
         - docker push docker.jbuncle.co.uk/jbuncle/php-autosemver
     only:
