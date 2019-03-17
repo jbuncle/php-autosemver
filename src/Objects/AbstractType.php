@@ -6,7 +6,6 @@
 
 namespace AutomaticSemver\Objects;
 
-use AutomaticSemver\TypeLookup;
 use Exception;
 
 /**
@@ -15,7 +14,7 @@ use Exception;
  * @author James Buncle <jbuncle@hotmail.com>
  */
 abstract class AbstractType
-        implements Signatures, TypeLookup {
+        implements Signatures {
 
     /**
      *
@@ -29,14 +28,11 @@ abstract class AbstractType
      */
     protected $obj;
 
-    protected function __construct(NamespaceObject $namespaceObj, $obj) {
+    protected function __construct(AbstractNamespace $namespaceObj, $obj) {
         $this->namespaceObj = $namespaceObj;
         $this->obj = $obj;
     }
 
-    public function getAbsoluteType(string $type): string {
-        return $this->namespaceObj->getAbsoluteType($type);
-    }
 
     public function getSignatures(): array {
         $signatures = [];
@@ -80,8 +76,11 @@ abstract class AbstractType
         } else if ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
             return new ClassConstObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
-            return new ClassMethodObject($this, $stmt);
+            return new ClassMethodObject($this->namespaceObj, $stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
+            return null;
+        } else if ($stmt instanceof \PhpParser\Node\Stmt\TraitUse) {
+            // Don't follow
             return null;
         }
         throw new Exception("Unsupported type " . get_class($stmt));

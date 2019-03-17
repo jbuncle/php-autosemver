@@ -24,7 +24,7 @@ abstract class AbstractNamespace
         if ($this->isTypeScalar($type)) {
             return $type;
         }
-        return $this->findAbsoluteType($type);
+        return $this->findFullyQualifiedType($type);
     }
 
     private function isTypeScalar(string $type): bool {
@@ -37,11 +37,13 @@ abstract class AbstractNamespace
             'bool',
             'boolean',
             'array',
+            'self',
+            'void',
         ];
         return in_array($type, $scalars);
     }
 
-    private function findAbsoluteType(string $type): string {
+    private function findFullyQualifiedType(string $type): string {
 
         foreach ($this->getObjects() as $object) {
             if ($object instanceof UseObject) {
@@ -58,8 +60,8 @@ abstract class AbstractNamespace
     public abstract function getPath(): string;
 
     public abstract function getStatements(): array;
-    public abstract function getSignatures(): array;
 
+    public abstract function getSignatures(): array;
 
     public function getObjects(): array {
         $objects = [];
@@ -106,6 +108,8 @@ abstract class AbstractNamespace
             return new ClassObject($this, $stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
             return new InterfaceObject($this, $stmt);
+        } else if ($stmt instanceof \PhpParser\Node\Stmt\Trait_) {
+            return new TraitObject($this, $stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
             if ($stmt->type === \PhpParser\Node\Stmt\Use_::TYPE_NORMAL) {
                 return new UseObject($stmt);

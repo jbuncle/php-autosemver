@@ -16,7 +16,7 @@ class UseObject
 
     /**
      *
-     * @var \PhpParser\Node\Stmt\UseUse
+     * @var \PhpParser\Node\Stmt\Use_
      */
     private $use;
 
@@ -40,7 +40,7 @@ class UseObject
         foreach ($this->use->uses as $useUse) {
             $name = $this->getName($useUse);
             if ($name === $type) {
-                return implode('\\', $useUse->name->parts);
+                return '\\' . implode('\\', $useUse->name->parts);
             }
         }
     }

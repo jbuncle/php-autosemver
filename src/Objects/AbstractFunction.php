@@ -66,7 +66,7 @@ abstract class AbstractFunction
                 if ($param->default instanceof \PhpParser\Node\Expr\Array_) {
                     $sig .= ' = [';
                     foreach ($param->default->items as $item) {
-                        $sig .= $item->value;
+                        $sig .= $item->value->value;
                     }
                     $sig .= ']';
                 } else if ($param->default instanceof \PhpParser\Node\Expr\ConstFetch) {
