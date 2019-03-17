@@ -45,7 +45,7 @@ git fetch --tags; CURRENT_VERSION=$(git describe --tags `git rev-list --tags --m
 * Changing method signature to use variadics will show as breaking change, even if the change is backward compatible.
 * Inherited changes as a result of updates to parent classes/traits that exist outside search directory won't be detected
 * Adding a constructor with a signature that matches the parent will show as a breaking changes
-* Adding a return type will show as a breaking change, even if the type matches what was previously returned.
+* Adding a return type that was previously not type hinted will show as a breaking change, even if the type matches what was previously returned.
 
 # Improvements
 * Make more aware of composer

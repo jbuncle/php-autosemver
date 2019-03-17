@@ -38,9 +38,12 @@ abstract class AbstractFunction
 
         $sigs = [];
         while (!empty($methodParams)) {
-            $sigs[] = $this->createSignatureForParams($methodParams, true);
+            $returnType = $this->functionLikeObj->returnType;
+
+            $sigs = array_merge($sigs, $this->createSignatureForParamsAndReturn($methodParams, true, $returnType));
+
             if (end($methodParams)->default) {
-                $sigs[] = $this->createSignatureForParams($methodParams, false);
+                $sigs = array_merge($sigs, $this->createSignatureForParamsAndReturn($methodParams, false, $returnType));
             }
             $lastParam = array_pop($methodParams);
             if (!isset($lastParam->default)) {
@@ -50,7 +53,19 @@ abstract class AbstractFunction
         return $sigs;
     }
 
-    protected abstract function createSignatureForParams($methodParams, bool $doDefault): string;
+    protected function createSignatureForParamsAndReturn(array $methodParams, bool $doDefault, $returnType): array {
+        $hasReturnType = ($returnType) ? true : false;
+
+        $sigs = [];
+        $sigs[] = $this->createSignatureForParams($methodParams, $doDefault, $returnType);
+        if ($hasReturnType) {
+            // Also add void as that is an appropriate usage signature
+            $sigs[] = $this->createSignatureForParams($methodParams, $doDefault, 'void');
+        }
+        return $sigs;
+    }
+
+    protected abstract function createSignatureForParams(array $methodParams, bool $doDefault, $returnType): string;
 
     protected function createParameterSignature(array $methodParams, bool $doDefault): string {
         $sig = '';

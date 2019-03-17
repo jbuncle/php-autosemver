@@ -28,7 +28,7 @@ class ClassMethodObject
         return parent::getSignatures();
     }
 
-    protected function createSignatureForParams($methodParams, bool $doDefault): string {
+    protected function createSignatureForParams(array $methodParams, bool $doDefault, $returnType ): string {
 
         $sig = '';
         $wrap = false;
@@ -49,8 +49,8 @@ class ClassMethodObject
         $sig = rtrim($sig, ',');
         $sig .= ')';
 
-        if ($this->functionLikeObj->returnType) {
-            $sig .= ':' . $this->getFullType($this->functionLikeObj->returnType);
+        if ($returnType) {
+            $sig .= ':' . $this->getFullType($returnType);
         }
 
         if ($wrap) {
