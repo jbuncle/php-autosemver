@@ -28,6 +28,9 @@ class SemVerDiff {
     }
 
     public function diff(string $startRevision, string $endRevision, bool $verbose): string {
+        if ($verbose){
+            echo "Comparing $startRevision => $endRevision\n";
+        }
         $filter = function(string $relPath): bool {
             if (!self::endsWith($relPath, '.php')) {
                 return false;

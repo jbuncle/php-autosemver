@@ -24,7 +24,7 @@ $args = array_diff($params, $flags);
 
 $startRevision = $args[0];
 if (array_key_exists(1, $args)) {
-    $endRevision = $argv[1];
+    $endRevision = $args[1];
 } else {
     $endRevision = 'HEAD';
 }
