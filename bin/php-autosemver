@@ -14,16 +14,25 @@ use AutomaticSemver\SemVerDiff;
 
 $root = getcwd();
 
-$startRevision = $argv[1];
-if (array_key_exists(2, $argv)) {
-    $endRevision = $argv[2];
+$params = $argv;
+array_shift($params);
+
+$flags = array_filter($params, function($val) {
+    return strpos($val, '--') === 0;
+});
+$args = array_diff($params, $flags);
+
+$startRevision = $args[0];
+if (array_key_exists(1, $args)) {
+    $endRevision = $argv[1];
 } else {
     $endRevision = 'HEAD';
 }
+$verbose = in_array('--verbose', $flags);
 
 $includePaths = [];
 $excludePaths = ['vendor'];
 
 $semVerDiff = new SemVerDiff($root, $includePaths, $excludePaths);
-echo $semVerDiff->diff($startRevision, $endRevision, false);
+echo $semVerDiff->diff($startRevision, $endRevision, $verbose);
 echo "\n"; // Stop odd % symbol in some bash windows
