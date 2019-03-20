@@ -37,31 +37,33 @@ abstract class AbstractFunction
         $methodParams = $this->functionLikeObj->params;
 
         $sigs = [];
-        while (!empty($methodParams)) {
+
+        while (true) {
             $returnType = $this->functionLikeObj->returnType;
 
             $sigs = array_merge($sigs, $this->createSignatureForParamsAndReturn($methodParams, true, $returnType));
 
-            if (end($methodParams)->default) {
+            if (!empty($methodParams) && end($methodParams)->default) {
+                // Last param is a default
                 $sigs = array_merge($sigs, $this->createSignatureForParamsAndReturn($methodParams, false, $returnType));
             }
+
+            if (empty($methodParams)) {
+                break;
+            }
+            // Remove default from end and continue
             $lastParam = array_pop($methodParams);
             if (!isset($lastParam->default)) {
                 break;
             }
         }
+
         return $sigs;
     }
 
     protected function createSignatureForParamsAndReturn(array $methodParams, bool $doDefault, $returnType): array {
-        $hasReturnType = ($returnType) ? true : false;
-
         $sigs = [];
         $sigs[] = $this->createSignatureForParams($methodParams, $doDefault, $returnType);
-        if ($hasReturnType) {
-            // Also add void as that is an appropriate usage signature
-            $sigs[] = $this->createSignatureForParams($methodParams, $doDefault, 'void');
-        }
         return $sigs;
     }
 
