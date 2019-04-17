@@ -114,7 +114,7 @@ abstract class AbstractNamespace
             if ($stmt->type === \PhpParser\Node\Stmt\Use_::TYPE_NORMAL) {
                 return new UseObject($stmt);
             } else {
-                throw new Exception("Only 'normal' aliases are supported, not type: " . $stmt->type);
+                return null;
             }
         }
         throw new Exception("Unsupported type " . get_class($stmt));

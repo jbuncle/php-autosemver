@@ -11,8 +11,7 @@ namespace AutomaticSemver\Objects;
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-class UseObject
-        implements Signatures {
+class UseObject implements Signatures {
 
     /**
      *
@@ -20,7 +19,7 @@ class UseObject
      */
     private $use;
 
-    function __construct(\PhpParser\Node\Stmt\Use_ $use) {
+    public function __construct(\PhpParser\Node\Stmt\Use_ $use) {
         $this->use = $use;
     }
 

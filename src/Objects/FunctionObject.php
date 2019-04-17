@@ -7,7 +7,7 @@
 namespace AutomaticSemver\Objects;
 
 /**
- * Description of FunctionObject
+ * FunctionObject
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
