@@ -14,16 +14,36 @@ use Exception;
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-abstract class AbstractNamespace
-        implements Signatures, TypeLookup {
+abstract class AbstractNamespace implements Signatures, TypeLookup {
 
-    public function getAbsoluteType(string $type): string {
+    public function getAbsoluteType($typeObj): string {
+
+        // Support null-able (optional) types
+        if ($typeObj instanceof \PhpParser\Node\NullableType) {
+            $type = $typeObj->type;
+            $optional = true;
+        } else {
+            $type = $typeObj;
+            $optional = false;
+        }
+
+        $aboluteType = $this->evaluateType($type);
+        if ($optional) {
+            return '?' . $aboluteType;
+        } else {
+            return $aboluteType;
+        }
+    }
+
+    private function evaluateType(string $type) {
+
         if (strpos($type, '\\') === 0) {
             return $type;
         }
         if ($this->isTypeScalar($type)) {
             return $type;
         }
+
         return $this->findFullyQualifiedType($type);
     }
 

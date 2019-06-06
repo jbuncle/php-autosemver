@@ -13,8 +13,7 @@ use AutomaticSemver\TypeLookup;
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-abstract class AbstractFunction
-        implements Signatures {
+abstract class AbstractFunction implements Signatures {
 
     /**
      *
