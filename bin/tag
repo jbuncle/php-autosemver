@@ -21,29 +21,29 @@ git fetch --tags --prune
 # Check for existing tags
 if [ "$(git ls-remote --tags | wc -l)" == "0" ] ; then 
     # Default version
-    CURRENT_VERSION='v1.0.0'
+    PREV_VERSION='0.0.0'
+    COMPARE_TO=$(git log --pretty=format:%H | tail -1)
+    INC='MAJOR'
 else
     # Lookup latest version
-    CURRENT_VERSION=$(git describe --tags `git rev-list --tags --max-count=1`)
-fi 
+    PREV_VERSION=$(git describe --tags `git rev-list --tags --max-count=1`)
+    COMPARE_TO=$VERSION
+    echo "Analysing for next semver version compared to '$PREV_VERSION'"
+    INC=$(php-autosemver $COMPARE_TO)
+fi
 
-# Set and then increment version using NPM version command, then tag in git
-echo "Analysing for next semver version compared to '$CURRENT_VERSION'"
-INC=$(php-autosemver $CURRENT_VERSION)
 echo "Next inc is '$INC'"
 
-echo "Calculating next version from '$CURRENT_VERSION'"
-VERSION=$(composer-version --inc $CURRENT_VERSION $INC)
+echo "Calculating next version from '$PREV_VERSION'"
+VERSION=$(composer-version --inc $PREV_VERSION $INC)
 
 echo ""
-echo "Current version: $CURRENT_VERSION"
+echo "Current version: $PREV_VERSION"
 echo "Increment:       $INC"
 echo "New version:     $VERSION"
 
 echo ""
 echo "Creating Git tag '$VERSION'"
-#git add .
-#git commit -m $VERSION
 git tag $VERSION
 
 # Show graph
