@@ -27,7 +27,7 @@ if [ "$(git ls-remote --tags | wc -l)" == "0" ] ; then
 else
     # Lookup latest version
     PREV_VERSION=$(git describe --tags `git rev-list --tags --max-count=1`)
-    COMPARE_TO=$VERSION
+    COMPARE_TO=$PREV_VERSION
     echo "Analysing for next semver version compared to '$PREV_VERSION'"
     INC=$(php-autosemver $COMPARE_TO)
 fi
