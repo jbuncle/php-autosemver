@@ -10,7 +10,7 @@ cache:
 lint_php:
     stage: check
     image: cyberpearuk/php-build-docker
-    script: phplint
+    script: phplint --exclude=vendor ./
     
 deploy_nexus:
     stage: deploy
