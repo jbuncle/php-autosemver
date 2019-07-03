@@ -9,12 +9,12 @@ cache:
 
 lint_php:
     stage: check
-    image: docker.jbuncle.co.uk/jbuncle/php-docker
+    image: cyberpearuk/php-build-docker
     script: phplint
     
 deploy_nexus:
     stage: deploy
-    image: docker.jbuncle.co.uk/jbuncle/php-docker
+    image: cyberpearuk/php-build-docker
     script:
         - rm -rf nbproject
         - composer nexus-push --url=https://nexus.jbuncle.co.uk/repository/composer-private/ --username=composer-publisher --password=$NEXUS_PASS  dev-master
