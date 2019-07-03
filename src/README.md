@@ -1,5 +1,11 @@
 # PHP Automatic Semantic Versioning Detector
 
+Automatically determine next version using semver (Semantic Versioning) rules - because CI should be automated and semver is great for actually managing dependencies.
+
+I created this tool because I wanted to fully automate my build process,
+without having to trust myself to firstly remember to tag changes, and secondly to actually
+tag them correctly.
+
 *Still in development*
 
 Compare two file paths or Git revisions to see whether the changes are considered
