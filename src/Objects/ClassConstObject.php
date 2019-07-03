@@ -11,8 +11,7 @@ namespace AutomaticSemver\Objects;
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-class ClassConstObject
-        implements Signatures {
+class ClassConstObject implements Signatures {
 
     /**
      *
@@ -36,6 +35,12 @@ class ClassConstObject
     private function getValueString($value): string {
         if ($value instanceof \PhpParser\Node\Scalar\String_) {
             return "'" . $value->value . "'";
+        }
+        if ($value instanceof \PhpParser\Node\Expr\UnaryMinus) {
+            return "-" . $value->expr->value;
+        }
+        if ($value instanceof \PhpParser\Node\Expr\UnaryPlus) {
+            return "+" . $value->expr->value;
         }
         return (string) $value->value;
     }
