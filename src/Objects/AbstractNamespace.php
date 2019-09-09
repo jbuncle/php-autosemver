@@ -104,6 +104,7 @@ abstract class AbstractNamespace implements Signatures, TypeLookup {
             \PhpParser\Node\Stmt\Nop::class,
             \PhpParser\Node\Stmt\Expression::class,
             \PhpParser\Node\Stmt\Declare_::class,
+            \PhpParser\Node\Stmt\Return_::class,
         ];
         return in_array($class, $ignoreables);
     }
