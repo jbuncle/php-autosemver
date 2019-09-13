@@ -2,9 +2,10 @@
     "name": "jbuncle/php-autosemver",
     "type": "project",
     "bin": [
+         "bin/addauth",
          "bin/php-autosemver",
-         "bin/composer-version",
-         "bin/addauth"
+         "bin/latesttag",
+         "bin/composer-version"
     ],
     "require": {
         "nikic/php-parser": "^4.2@dev"
@@ -20,5 +21,8 @@
             "email": "jbuncle@hotmail.com"
         }
     ],
-    "minimum-stability": "dev"
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=7.2"
+    }
 }

@@ -1,0 +1,46 @@
+#!/usr/bin/env php
+<?php
+/*
+ * Copyright (C) 2019 James Buncle (https://www.jbuncle.co.uk) - All Rights Reserved
+ */
+
+echo (function(): string {
+    $re = '/^v?([0-9]+)\.([0-9]+)\.([0-9]+)$/';
+
+    $results = `git tag --list`;
+
+    $lines = explode("\n", trim($results));
+
+    if (empty($lines)) {
+        // None defined - so 0
+        return '0.0.0';
+    }
+    $mapped = array_map(function(string $value) use ($re) {
+        $matches = [];
+        if (preg_match($re, $value, $matches) === 1) {
+            return [
+                'major' => intval($matches[1]),
+                'minor' => intval($matches[2]),
+                'patch' => intval($matches[3]),
+            ];
+        }
+
+        return null;
+    }, $lines);
+
+    usort($mapped, function($a, $b) {
+        if ($a['major'] !== $b['major']) {
+            return $a['major'] - $b['major'];
+        }
+
+        if ($a['minor'] !== $b['minor']) {
+            return $a['minor'] - $b['minor'];
+        }
+
+        return $a['patch'] - $b['patch'];
+    });
+
+    $value = $mapped[count($mapped) - 1];
+    
+    return $value['major'] . '.' . $value['minor'] . '.' . $value['patch'] . "\n";
+})();
