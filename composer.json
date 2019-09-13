@@ -8,11 +8,11 @@
         "bin/composer-version"
     ],
     "require": {
-        "nikic/php-parser": "^4.2@dev"
+        "php": ">=7.2",
+        "nikic/php-parser": "^4@stable"
     },
     "autoload": {
         "psr-4": {
-            "php": ">=7.2",
             "AutomaticSemver\\": "src/"
         }
     },

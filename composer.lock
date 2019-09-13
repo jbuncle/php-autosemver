@@ -4,11 +4,11 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e9fc02df897971025243feac1afabf5e",
+    "content-hash": "4190ef357010fa368dbfd04e025dd3bf",
     "packages": [
         {
             "name": "nikic/php-parser",
-            "version": "dev-master",
+            "version": "v4.2.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
@@ -62,10 +62,12 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "nikic/php-parser": 20
+        "nikic/php-parser": 0
     },
     "prefer-stable": false,
     "prefer-lowest": false,
-    "platform": [],
+    "platform": {
+        "php": ">=7.2"
+    },
     "platform-dev": []
 }
