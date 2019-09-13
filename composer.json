@@ -2,16 +2,17 @@
     "name": "jbuncle/php-autosemver",
     "type": "project",
     "bin": [
-         "bin/addauth",
-         "bin/php-autosemver",
-         "bin/latesttag",
-         "bin/composer-version"
+        "bin/addauth",
+        "bin/php-autosemver",
+        "bin/latesttag",
+        "bin/composer-version"
     ],
     "require": {
         "nikic/php-parser": "^4.2@dev"
     },
     "autoload": {
         "psr-4": {
+            "php": ">=7.2",
             "AutomaticSemver\\": "src/"
         }
     },
@@ -21,8 +22,5 @@
             "email": "jbuncle@hotmail.com"
         }
     ],
-    "minimum-stability": "dev",
-    "require": {
-        "php": ">=7.2"
-    }
+    "minimum-stability": "dev"
 }
