@@ -23,7 +23,7 @@ abstract class AbstractFunction implements Signatures {
 
     /**
      *
-     * @var \PhpParser\Node\FunctionLike
+     * @var \PhpParser\Node\FunctionLike 
      */
     protected $functionLikeObj;
 
@@ -33,7 +33,6 @@ abstract class AbstractFunction implements Signatures {
     }
 
     public function getSignatures(): array {
-        /** @var \PhpParser\Node\Param[]|\PhpParser\Param[] $methodParams */
         $methodParams = $this->functionLikeObj->params;
 
         $sigs = [];
@@ -43,7 +42,7 @@ abstract class AbstractFunction implements Signatures {
 
             $sigs = array_merge($sigs, $this->createSignatureForParamsAndReturn($methodParams, true, $returnType));
 
-            if (!empty($methodParams) && $this->isOptional(end($methodParams))) {
+            if (!empty($methodParams) && end($methodParams)->default) {
                 // Last param is a default
                 $sigs = array_merge($sigs, $this->createSignatureForParamsAndReturn($methodParams, false, $returnType));
             }
@@ -53,25 +52,12 @@ abstract class AbstractFunction implements Signatures {
             }
             // Remove default from end and continue
             $lastParam = array_pop($methodParams);
-            if (!$this->isOptional($lastParam)) {
+            if (!isset($lastParam->default)) {
                 break;
             }
         }
 
         return $sigs;
-    }
-
-    private function isOptional($param): bool {
-        if ($param->default) {
-            return true;
-        }
-
-        $type = $this->getFullType($param->type);
-        if (strpos($type, '?') === 0) {
-            return true;
-        }
-        
-        return false;
     }
 
     protected function createSignatureForParamsAndReturn(array $methodParams, bool $doDefault, $returnType): array {
