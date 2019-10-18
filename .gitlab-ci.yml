@@ -16,8 +16,12 @@ deploy_nexus:
     stage: deploy
     image: cyberpearuk/php-build-docker
     script:
-        - rm -rf nbproject
-        - composer nexus-push --url=https://nexus.jbuncle.co.uk/repository/composer-private/ --username=composer-publisher --password=$NEXUS_PASS  dev-master
+        - php <(curl -s https://gist.githubusercontent.com/jbuncle/8e479343cfeb785046e3c6fe1a73dcce/raw/nexus-upload.php)
+         --repository=https://nexus.jbuncle.co.uk/repository/composer-private/ 
+         --username=composer-publisher 
+         --password=$NEXUS_PASS 
+         --version=$CI_COMMIT_TAG
+         --ignore="/^(nbproject.*|\.gitlab\-ci\.yml|Dockerfile)$/"
     only:
         refs:
             - master
