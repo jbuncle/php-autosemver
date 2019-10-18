@@ -26,7 +26,10 @@ abstract class AbstractNamespace implements Signatures, TypeLookup {
             $type = $typeObj;
             $optional = false;
         }
-
+        if (strpos($type, '?') === 0) {
+            $optional = true;
+            $type = substr($type, 1);
+        }
         $aboluteType = $this->evaluateType($type);
         if ($optional) {
             return '?' . $aboluteType;
