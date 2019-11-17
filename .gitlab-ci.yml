@@ -14,9 +14,9 @@ lint_php:
     
 deploy_nexus:
     stage: deploy
-    image: cyberpearuk/php-build-docker
+    image: jbuncle/composer-nexus-upload
     script:
-        - php <(curl -s https://gist.githubusercontent.com/jbuncle/8e479343cfeb785046e3c6fe1a73dcce/raw/nexus-upload.php)
+        - nexus-upload
          --repository=https://nexus.jbuncle.co.uk/repository/composer-private/ 
          --username=composer-publisher 
          --password=$NEXUS_PASS 
