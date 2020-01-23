@@ -52,9 +52,9 @@ class SemVerDiff {
             if (strpos($pattern, '/') === 0) {
                 $pattern = $ignorePattern . '*';
             } else {
-                $pattern = '*' . $ignorePattern . '*';                
+                $pattern = '*' . $ignorePattern . '*';
             }
-            
+
             if (fnmatch($pattern, $filePath)) {
                 return true;
             }
@@ -64,10 +64,7 @@ class SemVerDiff {
         return false;
     }
 
-    public function diff(string $startRevision, string $endRevision, bool $verbose): string {
-        if ($verbose) {
-            echo "Comparing $startRevision => $endRevision\n";
-        }
+    public function diff(string $startRevision, string $endRevision): DiffReport {
 
         $gitIgnores = $this->loadGitIgnore($this->root . DIRECTORY_SEPARATOR . '.gitignore');
         $gitFilter = function(string $relPath) use ($gitIgnores): bool {
@@ -97,31 +94,13 @@ class SemVerDiff {
         $newSignatures = array_diff($currentSignatures, $prevSignatures);
         $removedSignatures = array_diff($prevSignatures, $currentSignatures);
 
-        if ($verbose) {
-
-            echo "Unchanged:\n";
-            foreach ($unchangedSignatures as $unchangedSignature) {
-                echo "\t$unchangedSignature\n";
-            }
-
-            echo "New:\n";
-            foreach ($newSignatures as $newSignature) {
-                echo "\t$newSignature\n";
-            }
-
-            echo "Removed:\n";
-            foreach ($removedSignatures as $removedSignature) {
-                echo "\t$removedSignature\n";
-            }
-        }
-
-        if (!empty($removedSignatures)) {
-            return "MAJOR";
-        } else if (!empty($newSignatures)) {
-            return "MINOR";
-        } else {
-            return "PATCH";
-        }
+        return new DiffReport(
+                $startRevision,
+                $endRevision,
+                $unchangedSignatures,
+                $newSignatures,
+                $removedSignatures
+        );
     }
 
     private static function startsWithAny(string $str, array $prefixes) {

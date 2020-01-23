@@ -12,27 +12,19 @@ foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php
 
 use AutomaticSemver\SemVerDiff;
 
-$root = getcwd();
+$cli = new \AutomaticSemver\CLI();
+$cli->load();
+$verbosity = $cli->getVerbosity();
 
-$params = $argv;
-array_shift($params);
-
-$flags = array_filter($params, function($val) {
-    return strpos($val, '--') === 0;
-});
-$args = array_diff($params, $flags);
-
-$startRevision = $args[0];
-if (array_key_exists(1, $args)) {
-    $endRevision = $args[1];
-} else {
-    $endRevision = 'HEAD';
-}
-$verbose = in_array('--verbose', $flags);
+$root = $cli->getProjectPath();
 
 $includePaths = [];
 $excludePaths = ['vendor', 'tests'];
 
 $semVerDiff = new SemVerDiff($root, $includePaths, $excludePaths);
-echo $semVerDiff->diff($startRevision, $endRevision, $verbose);
+$diffReport = $semVerDiff->diff(
+        $cli->getFrom(),
+        $cli->getTo()
+);
+echo $diffReport->toString($verbosity);
 echo "\n"; // Stop odd % symbol in some bash windows
