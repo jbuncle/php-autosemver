@@ -15,7 +15,7 @@ namespace AutomaticSemver\Objects;
 class InterfaceObject
         extends AbstractType {
 
-    public function __construct(NamespaceObject $namespaceObj,\PhpParser\Node\Stmt\Interface_ $obj) {
+    public function __construct(AbstractNamespace $namespaceObj,\PhpParser\Node\Stmt\Interface_ $obj) {
         parent::__construct($namespaceObj,$obj);
     }
 

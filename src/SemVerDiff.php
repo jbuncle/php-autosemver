@@ -6,6 +6,7 @@
 
 namespace AutomaticSemver;
 
+use AutomaticSemver\FileSearch\SystemFileSearch;
 use AutomaticSemver\GitSearch\GitSearch;
 
 /**
@@ -16,9 +17,7 @@ use AutomaticSemver\GitSearch\GitSearch;
 class SemVerDiff {
 
     private $root;
-
     private $includePaths;
-
     private $excludePaths;
 
     public function __construct(string $root, array $includePaths, array $excludePaths) {
@@ -27,11 +26,54 @@ class SemVerDiff {
         $this->excludePaths = $excludePaths;
     }
 
+    private function loadGitIgnore(string $file): array {
+        if (!file_exists($file)) {
+            return [];
+        }
+
+        $fileContents = file_get_contents($file);
+        $lines = explode("\n", $fileContents);
+
+
+        $clean = array_map(function(string $line): string {
+            $line = substr($line, strpos($line, '#'));
+            return trim($line);
+        }, $lines);
+
+        return array_filter($clean, function(string $line): bool {
+            return !empty($line);
+        });
+    }
+
+    private function isGitIgnored(string $filePath, array $ignores): bool {
+        $filePath = '/' . $filePath;
+        foreach ($ignores as $ignorePattern) {
+            $pattern = $ignorePattern;
+            if (strpos($pattern, '/') === 0) {
+                $pattern = $ignorePattern . '*';
+            } else {
+                $pattern = '*' . $ignorePattern . '*';                
+            }
+            
+            if (fnmatch($pattern, $filePath)) {
+                return true;
+            }
+        }
+
+        // Failed to match
+        return false;
+    }
+
     public function diff(string $startRevision, string $endRevision, bool $verbose): string {
-        if ($verbose){
+        if ($verbose) {
             echo "Comparing $startRevision => $endRevision\n";
         }
-        $filter = function(string $relPath): bool {
+
+        $gitIgnores = $this->loadGitIgnore($this->root . DIRECTORY_SEPARATOR . '.gitignore');
+        $gitFilter = function(string $relPath) use ($gitIgnores): bool {
+            return $this->isGitIgnored($relPath, $gitIgnores);
+        };
+        $filter = function(string $relPath) use ($gitFilter): bool {
             if (!self::endsWith($relPath, '.php')) {
                 return false;
             }
@@ -41,16 +83,14 @@ class SemVerDiff {
             if (!empty($this->includePaths) && self::startsWithAny($relPath, $this->excludePaths)) {
                 return false;
             }
-
-            return true;
+            return !$gitFilter($relPath);
         };
-        $signatureSearch = new SignatureSearch($filter);
-        $gitSearch = new GitSearch($filter);
+        $signatureSearch = new SignatureSearch();
 
-        $startFiles = $gitSearch->findFiles($this->root, $startRevision);
+        $startFiles = $this->getFilesForLabel($startRevision, $filter);
+        $endFiles = $this->getFilesForLabel($endRevision, $filter);
+
         $prevSignatures = $signatureSearch->getSignatures($startFiles);
-
-        $endFiles = $gitSearch->findFiles($this->root, $endRevision);
         $currentSignatures = $signatureSearch->getSignatures($endFiles);
 
         $unchangedSignatures = array_intersect($currentSignatures, $prevSignatures);
@@ -95,6 +135,23 @@ class SemVerDiff {
 
     private static function startsWith(string $str, string $prefix) {
         return $prefix === substr($str, 0, strlen($prefix));
+    }
+
+    /**
+     * 
+     * @param string $label
+     * @param callable $filter
+     * 
+     * @return array<FileI>
+     */
+    private function getFilesForLabel(string $label, callable $filter): array {
+        if (strcasecmp($label, 'wc') === 0) {
+            $fileSearch = new SystemFileSearch($filter);
+            return $fileSearch->findFiles($this->root);
+        } else {
+            $gitSearch = new GitSearch($filter);
+            return $gitSearch->findFiles($this->root, $label);
+        }
     }
 
     private static function endsWith($haystack, $needle) {

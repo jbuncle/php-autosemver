@@ -15,7 +15,7 @@ namespace AutomaticSemver\Objects;
 class ClassObject
         extends AbstractType {
 
-    public function __construct(NamespaceObject $namespaceObj, \PhpParser\Node\Stmt\Class_ $obj) {
+    public function __construct(AbstractNamespace $namespaceObj, \PhpParser\Node\Stmt\Class_ $obj) {
         parent::__construct($namespaceObj, $obj);
     }
 

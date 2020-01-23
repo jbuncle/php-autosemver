@@ -18,41 +18,42 @@ use RecursiveIteratorIterator;
 class SystemFileSearch {
 
     /**
+     *
+     * @var callable
+     */
+    private $filter;
+
+    public function __construct(callable $filter) {
+        $this->filter = $filter;
+    }
+
+    /**
      * 
      * @param string $root
      * @return SystemFile[]
      */
-    public function findFiles(string $root, array $paths): array {
+    public function findFiles(string $root): array {
         $it = new RecursiveDirectoryIterator($root);
 
         $files = [];
         foreach (new RecursiveIteratorIterator($it) as $file) {
+            if (in_array(basename($file), ['.', '..'])) {
+                continue;
+            }
             $relPath = $this->relPath($root, (string) $file);
-            if (self::startsWithAny($relPath, $paths)) {
-                $files [] = new SystemFile($root, $relPath);
+            if (call_user_func($this->filter, (string) $relPath)) {
+                $files[] = new SystemFile($root, $relPath);
             }
         }
 
         return $files;
     }
 
-    private static function startsWithAny(string $str, array $prefixes) {
-        foreach ($prefixes as $prefix) {
-            if (self::startsWith($str, $prefix)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static function startsWith(string $str, string $prefix) {
-        return $prefix === substr($str, 0, strlen($prefix));
-    }
-
     private function relPath(string $root, string $path) {
         $part = substr($path, 0, strlen($root));
         if ($part === $root) {
-            return substr($path, strlen($root) + 1);
+            $relPath = substr($path, strlen($root) + 1);
+            return str_replace(DIRECTORY_SEPARATOR, '/', $relPath);
         }
         throw new Exception("Bad path");
     }

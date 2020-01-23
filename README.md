@@ -37,7 +37,7 @@ Usage, from the root of your git project:
 ```bash
 vendor/bin/php-autosemver 1.0.0 HEAD
 ```
-Replacing '1.0.0' and 'HEAD' with the tags, branches or revisions you want to compare.
+Replacing '1.0.0' and 'HEAD' with the 'wc' (working copy), the tag, branch or revision you want to compare.
 
 ### Compare top revision to last tag
 
@@ -47,6 +47,12 @@ Crazy long one-liner to get next version based on the last Git tag.
 git fetch --tags; CURRENT_VERSION=$(git describe --tags `git rev-list --tags --max-count=1`); INC=$(vendor/bin/php-autosemver $CURRENT_VERSION); vendor/bin/composer-version --inc $CURRENT_VERSION $INC
 ```
 
+### Compare top revision to working copy with Docker
+
+```bash
+docker run -v $(pwd):/app -it docker.jbuncle.co.uk/jbuncle/php-autosemver bash -c "cd /app; php-autosemver \$(latesttag) WC --verbose"
+```
+
 ## Known Edge Cases
 * Changing method signature to use variadics will show as breaking change, even if the change is backward compatible.
 * Inherited changes as a result of updates to parent classes/traits that exist outside search directory won't be detected
@@ -54,6 +60,7 @@ git fetch --tags; CURRENT_VERSION=$(git describe --tags `git rev-list --tags --m
 * Adding a return type that was previously not type hinted will show as a breaking change, even if the type matches what was previously returned
 (technically this is a breaking changes as method might be overridden and then not match). 
 * Removing a type parameter will show as breaking change
+* Doesn't recognise an addition of a method signature to an interface as a breaking change.
 
 # Improvements
 * Make more aware of composer
