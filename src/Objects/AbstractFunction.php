@@ -104,7 +104,7 @@ abstract class AbstractFunction implements Signatures {
         }
 
         if ($type instanceof \PhpParser\Node\Name\FullyQualified) {
-            return (string) $type;
+            return '\\' . (string) $type;
         }
         return $this->parentObject->getAbsoluteType($type);
     }
