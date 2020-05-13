@@ -62,15 +62,20 @@ docker run -v $(pwd):/app -it docker.jbuncle.co.uk/jbuncle/php-autosemver bash -
 * Removing a type parameter will show as breaking change
 * Doesn't recognise an addition of a method signature to an interface as a breaking change.
 
-# Improvements
-* Make more aware of composer
- * Inspect composer dependencies (if a dependency has incremented, then this project should match the increment)
- * Inspect autoload paths (don't worry about classes that can't/shouldn't be accessed)
+## Improvements
+ * Make more aware of composer
+   * Inspect composer dependencies (if a dependency has incremented, then this project should match the increment)
+   * Inspect autoload paths (don't worry about classes that can't/shouldn't be accessed)
+ * Only bother parsing files that have changed
+ * Analyse parent classes for additional, inherited signatures
+ * Treat addition of a signature to an interface as a breaking change
+ * Ignore change of default values on parameters (these aren't breaking changes)
+ * Don't treat making abstract class non-abstract as a breaking change
 
-# How it works
+## How it works
 
 The tool parses all the PHP files and generates a list of all the possible, accessible signatures (including variations)
-found. Once generated for both sets of changes, it will compared the signature lists looking for 
+found. Once generated for both sets of changes, it will compare the generated signature strings lists looking for 
 removed signatures (MAJOR change), new signatures (MINOR change) or no signature changes (PATH).
 
 For example, the following in PHP code:
@@ -85,7 +90,7 @@ For example, the following in PHP code:
 Would be interpreted into 3 unique signature variations:
 
 ```
-\MyNamespace\SomeClass->aMethod(mixed, mixed = 2)
+\MyNamespace\SomeClass->aMethod(mixed, mixed = 0)
 \MyNamespace\SomeClass->aMethod(mixed, mixed)
 \MyNamespace\SomeClass->aMethod(mixed)
 ```
