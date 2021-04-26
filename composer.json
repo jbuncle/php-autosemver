@@ -1,6 +1,7 @@
 {
     "name": "jbuncle/php-autosemver",
     "type": "project",
+    "license": "GPL-3.0-or-later",
     "bin": [
         "bin/addauth",
         "bin/php-autosemver",

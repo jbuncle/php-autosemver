@@ -1,82 +1,92 @@
 # PHP Automatic Semantic Versioning Detector
 
-Automatically determine next version using semver (Semantic Versioning) rules - because CI should be automated and semver is great for actually managing dependencies.
+[![Latest Version](https://img.shields.io/packagist/v/jbuncle/php-autosemver?label=version)](https://packagist.org/packages/jbuncle/php-autosemver)
+[![Docker Pulls](https://img.shields.io/docker/pulls/jbuncle/php-autosemver)](https://hub.docker.com/r/jbuncle/php-autosemver)
+[![Build Status](https://img.shields.io/docker/cloud/build/jbuncle/php-autosemver)](https://hub.docker.com/r/jbuncle/php-autosemver)
+[![LICENCE](https://img.shields.io/github/license/jbuncle/php-autosemver)](https://github.com/jbuncle/php-autosemver/blob/master/LICENSE)
 
-I created this tool because I wanted to fully automate my build process,
-without having to trust myself to firstly remember to tag changes, and secondly to actually
-tag them correctly.
+*Still in development, though largely stable*
 
-*Still in development*
+**Manage your PHP library versions automatically**
 
-Compare two file paths or Git revisions to see whether the changes are considered
-MAJOR, MINOR or PATCH based on semantic versioning rules.
+Automatically calculates the Semantic Version (SemVer) increment automatically based on changes to the source code and Git revisions. This increment can then be used to determine the next version number (e.g. using the built in `composer-version` command).
 
-Intended to be used in Continuous Integration (CI) Systems to help automate the versioning process.
+Given two Git revisions (or a working copy), it will return **MAJOR**, **MINOR** or **PATCH** based on the changes between those revisions, based on Semantic Versioning rules (see <https://semver.org/>).
 
-Performs a basic/rough comparison, so, although it will largely work for most changes,
-there are edge cases that won't be picked up (e.g. changes inherited from parent classes outside the search path).
+This allows the versioning process to be fully automated, where you would otherwise require a manual step to set the version would be required.
 
-Arguably, even with edge cases, this is better than manually maintaining semantic versions
-since such processes take time and are prone to human error.
+There are some edge cases, however automation is probably still better than manually maintaining semantic versions since such processes take time and are prone to human error.
 
-## Installation & Usage
+## Installation with Composer
 
-### Installation
-Install globally: 
-```bash 
+Install globally:
+
+```bash
 composer global require jbuncle/php-autosemver
 ```
 
-Install for you project:
-```bash 
-composer require --dev jbuncle/php-autosemver
-```
-### Basic Usage
+## Basic Usage
 
 Usage, from the root of your git project:
-```bash
-vendor/bin/php-autosemver 1.0.0 HEAD
-```
-Replacing '1.0.0' and 'HEAD' with the 'wc' (working copy), the tag, branch or revision you want to compare.
-
-### Compare top revision to last tag
-
-Crazy long one-liner to get next version based on the last Git tag.
 
 ```bash
-git fetch --tags; CURRENT_VERSION=$(git describe --tags `git rev-list --tags --max-count=1`); INC=$(vendor/bin/php-autosemver $CURRENT_VERSION); vendor/bin/composer-version --inc $CURRENT_VERSION $INC
+cd <your project>; php-autosemver <revision-from> <revision-to>
 ```
 
-### Compare top revision to working copy with Docker
+A "revision" can be a commit, tag, branch, 'HEAD', or 'WC'.
+
+## Examples
+
+### Compare your working copy to Git
+
+Run from your the root of your project.
+
+*With composer global*
 
 ```bash
-docker run -v $(pwd):/app -it docker.jbuncle.co.uk/jbuncle/php-autosemver bash -c "cd /app; php-autosemver \$(latesttag) WC --verbose"
+php-autosemver --verbosity=1 HEAD WC
 ```
 
-## Known Edge Cases
-* Changing method signature to use variadics will show as breaking change, even if the change is backward compatible.
-* Inherited changes as a result of updates to parent classes/traits that exist outside search directory won't be detected
-* Adding a constructor with a signature that matches the parent will show as a breaking changes
-* Adding a return type that was previously not type hinted will show as a breaking change, even if the type matches what was previously returned
-(technically this is a breaking changes as method might be overridden and then not match). 
-* Removing a type parameter will show as breaking change
-* Doesn't recognise an addition of a method signature to an interface as a breaking change.
+*With Docker*
 
-## Improvements
- * Make more aware of composer
-   * Inspect composer dependencies (if a dependency has incremented, then this project should match the increment)
-   * Inspect autoload paths (don't worry about classes that can't/shouldn't be accessed)
- * Only bother parsing files that have changed
- * Analyse parent classes for additional, inherited signatures
- * Treat addition of a signature to an interface as a breaking change
- * Ignore change of default values on parameters (these aren't breaking changes)
- * Don't treat making abstract class non-abstract as a breaking change
+```bash
+docker run -v $(pwd):/app -it --rm jbuncle/php-autosemver bash -c "cd /app; php-autosemver --verbosity=1 HEAD WC"
+```
+
+Useful for checking whether your commit introduces an API breaking change and print out the relevant differences.
+
+### Get next version <ins>number</ins>
+
+*With composer*
+
+```bash
+git fetch --tags
+
+LATEST_TAG=$(latesttag);\
+INCREMENT=$(php-autosemver ${LAST_VERSION});\
+NEW_VERSION=$(composer-version --inc ${LATEST_TAG} ${INCREMENT});\
+echo ${NEW_VERSION}
+```
+
+*With Docker*
+
+```bash
+git fetch --tags
+
+NEW_VERSION=$(docker run -it --rm -v $(pwd):/app jbuncle/php-autosemver bash -c '\
+LATEST_TAG=$(latesttag);\
+INCREMENT=$(php-autosemver ${LATEST_TAG});\
+composer-version --inc ${LATEST_TAG} ${INCREMENT}') ;\
+echo ${NEW_VERSION}
+```
+
+Handy command (that looks more complicated than it is) for getting the next revision using Git tags (formatted as semantic version numbers)
 
 ## How it works
 
-The tool parses all the PHP files and generates a list of all the possible, accessible signatures (including variations)
-found. Once generated for both sets of changes, it will compare the generated signature strings lists looking for 
-removed signatures (MAJOR change), new signatures (MINOR change) or no signature changes (PATH).
+The tool parses all the PHP files and generates a list of all the possible, accessible signatures (including variations) found. For Git revisions it will traverse the Git commit directly using the Git CLI (therefore the `git` command is required).
+
+Once generated for both sets of changes, it will compare the generated signature strings lists looking for removed signatures (**MAJOR** change), new signatures (**MINOR** change) or no signature changes (**PATCH**).
 
 For example, the following in PHP code:
 
@@ -94,3 +104,24 @@ Would be interpreted into 3 unique signature variations:
 \MyNamespace\SomeClass->aMethod(mixed, mixed)
 \MyNamespace\SomeClass->aMethod(mixed)
 ```
+
+## Known Edge Cases
+
+* Changing method signature to be a [variadic](https://www.php.net/manual/en/functions.arguments.php#functions.variable-arg-list) will show as breaking change, even if the change is backward compatible.
+* Inherited changes as a result of updates to parent classes/traits that exist outside search directory won't be detected
+* Adding a constructor with a signature that matches the parent will show as a breaking changes
+* Adding a return type that was previously not type hinted will show as a breaking change, even if the type matches what was previously returned
+(technically this is a breaking changes as method might be overridden and then not match).
+* Removing a type parameter will show as breaking change
+* Doesn't recognise an addition of a method signature to an interface as a breaking change.
+
+## Improvements
+
+* Make more aware of composer
+  * Inspect composer dependencies (if a dependency has incremented, then this project should match the increment)
+  * Inspect autoload paths (don't worry about classes that can't/shouldn't be accessed)
+* Only bother parsing files that have changed
+* Analyse parent classes for additional, inherited signatures
+* Treat addition of a signature to an interface as a breaking change
+* Ignore change of default values on parameters (these aren't breaking changes)
+* Don't treat making abstract class non-abstract as a breaking change
