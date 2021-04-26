@@ -1,0 +1,8 @@
+/vendor
+/.git
+/nbproject
+/LICENSE
+/README.md
+/.gitignore
+/.dockerignore
+/Dockerfile
