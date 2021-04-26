@@ -1,17 +1,20 @@
 # PHP Automatic Semantic Versioning Detector
 
-[![Latest Version](https://img.shields.io/packagist/v/jbuncle/php-autosemver?label=version)](https://packagist.org/packages/jbuncle/php-autosemver)
-[![Docker Pulls](https://img.shields.io/docker/pulls/jbuncle/php-autosemver)](https://hub.docker.com/r/jbuncle/php-autosemver)
+[![Latest Version](https://img.shields.io/github/v/tag/jbuncle/php-autosemver?sort=semver&label=github)](https://github.com/jbuncle/php-autosemver/)
+[![Packagist Version](https://img.shields.io/packagist/v/jbuncle/php-autosemver)](https://packagist.org/packages/jbuncle/php-autosemver)
+[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/jbuncle/php-autosemver?label=docker&logo=docker%20version&sort=semver)](https://hub.docker.com/r/jbuncle/php-autosemver)
+
 [![Build Status](https://img.shields.io/docker/cloud/build/jbuncle/php-autosemver)](https://hub.docker.com/r/jbuncle/php-autosemver)
+![Packagist PHP Version Support](https://img.shields.io/packagist/php-v/jbuncle/php-autosemver)
 [![LICENCE](https://img.shields.io/github/license/jbuncle/php-autosemver)](https://github.com/jbuncle/php-autosemver/blob/master/LICENSE)
 
 *Still in development, though largely stable*
 
 **Manage your PHP library versions automatically**
 
-Automatically calculates the Semantic Version (SemVer) increment automatically based on changes to the source code and Git revisions. This increment can then be used to determine the next version number (e.g. using the built in `composer-version` command).
+Automatically calculates the Semantic Version (SemVer) increment automatically based on source code changes between different Git references (revisions, tags, etc). This increment can then be used to determine the next version number (e.g. using the built in `composer-version` command).
 
-Given two Git revisions (or a working copy), it will return **MAJOR**, **MINOR** or **PATCH** based on the changes between those revisions, based on Semantic Versioning rules (see <https://semver.org/>).
+Given two Git revisions (or a Working Copy), it will return **MAJOR**, **MINOR** or **PATCH** based on the changes between those revisions, based on Semantic Versioning rules (see <https://semver.org/>).
 
 This allows the versioning process to be fully automated, where you would otherwise require a manual step to set the version would be required.
 
@@ -27,13 +30,21 @@ composer global require jbuncle/php-autosemver
 
 ## Basic Usage
 
-Usage, from the root of your git project:
+*With composer*
 
 ```bash
-cd <your project>; php-autosemver <revision-from> <revision-to>
+cd <your project>
+php-autosemver <revision-from> <revision-to>
 ```
 
-A "revision" can be a commit, tag, branch, 'HEAD', or 'WC'.
+*With docker*
+
+```bash
+cd <your project>
+docker run -v $(pwd):/app -it --rm jbuncle/php-autosemver <revision-from> <revision-to>
+```
+
+A "revision" can be a commit, tag, branch, `HEAD`, or `WC` (use working copy).
 
 ## Examples
 
@@ -50,37 +61,47 @@ php-autosemver --verbosity=1 HEAD WC
 *With Docker*
 
 ```bash
-docker run -v $(pwd):/app -it --rm jbuncle/php-autosemver bash -c "cd /app; php-autosemver --verbosity=1 HEAD WC"
+docker run -v $(pwd):/app -it --rm jbuncle/php-autosemver bash -c "php-autosemver --verbosity=1 HEAD WC"
 ```
 
 Useful for checking whether your commit introduces an API breaking change and print out the relevant differences.
 
-### Get next version <ins>number</ins>
+### Automatically tag current Git revision
+
+Create a Git tag by comparing current revision to last tag.
 
 *With composer*
 
 ```bash
+# Ensure we have fetched existing tags
 git fetch --tags
 
-LATEST_TAG=$(latesttag);\
-INCREMENT=$(php-autosemver ${LAST_VERSION});\
-NEW_VERSION=$(composer-version --inc ${LATEST_TAG} ${INCREMENT});\
-echo ${NEW_VERSION}
+# Calculate the version number using php-autosemver
+LATEST_TAG=$(latesttag);
+INCREMENT=$(php-autosemver ${LAST_VERSION});
+NEW_VERSION=$(composer-version --inc ${LATEST_TAG} ${INCREMENT});
+
+# Create the tag and push it
+git tag ${NEW_VERSION}
+git push origin ${NEW_VERSION}
 ```
 
 *With Docker*
 
 ```bash
+# Ensure we have fetched existing tags
 git fetch --tags
 
+# Calculate the version number using php-autosemver docker image
 NEW_VERSION=$(docker run -it --rm -v $(pwd):/app jbuncle/php-autosemver bash -c '\
 LATEST_TAG=$(latesttag);\
 INCREMENT=$(php-autosemver ${LATEST_TAG});\
-composer-version --inc ${LATEST_TAG} ${INCREMENT}') ;\
-echo ${NEW_VERSION}
-```
+composer-version --inc ${LATEST_TAG} ${INCREMENT}')
 
-Handy command (that looks more complicated than it is) for getting the next revision using Git tags (formatted as semantic version numbers)
+# Create the tag and push it
+git tag ${NEW_VERSION}
+git push origin ${NEW_VERSION}
+```
 
 ## How it works
 
@@ -125,3 +146,4 @@ Would be interpreted into 3 unique signature variations:
 * Treat addition of a signature to an interface as a breaking change
 * Ignore change of default values on parameters (these aren't breaking changes)
 * Don't treat making abstract class non-abstract as a breaking change
+* Subversion (SVN) support
