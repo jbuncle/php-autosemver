@@ -1,0 +1,24 @@
+#!/bin/bash
+# Calculates next version by looking up the last Git tag and comparing it to head
+
+set -e
+
+# Fetch tags
+git fetch --tags --prune >/dev/null
+
+# Check for existing tags
+if [ "$(git ls-remote --tags | wc -l)" == "0" ] ; then 
+    # Default version
+    PREV_VERSION='0.0.0'
+    COMPARE_TO=$(git log --pretty=format:%H | tail -1)
+    INC='MAJOR'
+else
+    # Lookup latest version
+    PREV_VERSION=$(latesttag)
+    COMPARE_TO=$PREV_VERSION
+    INC=$(php-autosemver $COMPARE_TO)
+fi
+
+VERSION=$(composer-version --inc $PREV_VERSION $INC)
+
+echo ${VERSION}
