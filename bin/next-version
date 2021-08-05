@@ -3,11 +3,8 @@
 
 set -e
 
-# Fetch tags
-git fetch --tags --prune >/dev/null
-
 # Check for existing tags
-if [ "$(git ls-remote --tags | wc -l)" == "0" ] ; then 
+if [ "$(git tag | tail -n 1)" == "0" ] ; then 
     # Default version
     PREV_VERSION='0.0.0'
     COMPARE_TO=$(git log --pretty=format:%H | tail -1)
