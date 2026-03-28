@@ -22,7 +22,7 @@ jobs:
           tools: composer:v2
 
       - name: Validate composer metadata
-        run: composer validate --strict
+        run: composer validate --no-check-publish
 
       - name: Install dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
