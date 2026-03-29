@@ -10,13 +10,17 @@ use AutomaticSemver\CLI;
 use AutomaticSemver\DiffReport;
 use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\SemVerDiff;
+use AutomaticSemver\Signature\CallableIdentity;
 use AutomaticSemver\Signature\CallableSignature;
+use AutomaticSemver\Signature\ConstantIdentity;
 use AutomaticSemver\Signature\ConstantSignature;
 use AutomaticSemver\Signature\DefaultValue;
+use AutomaticSemver\Signature\ParameterIdentity;
 use AutomaticSemver\Signature\ContainerIdentity;
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\NamespaceIdentity;
 use AutomaticSemver\Signature\ParameterSignature;
+use AutomaticSemver\Signature\PropertyIdentity;
 use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\PropertySignature;
 use AutomaticSemver\Signature\TypeReference;
@@ -187,6 +191,18 @@ function testExplicitIdentityObjectsRenderStableKeys(): void {
 
     $container = new ContainerIdentity('class', 'Foo', true, false);
     assertSameValue('Container identity objects should render the current key format.', 'container|kind:class|name:Foo|abstract:1|final:0', $container->toIdentityKey());
+
+    $parameter = new ParameterIdentity(new TypeReference('string'), true, new DefaultValue('0'));
+    assertSameValue('Parameter identity objects should render the current key format.', 'param|variadic:1|type:string|default:0', $parameter->toIdentityKey());
+
+    $callable = new CallableIdentity('->', 'demo', [$parameter], new TypeReference('?\\Vendor\\Thing'), ['protected'], true);
+    assertContainsText('Callable identity objects should render the current key format.', 'callable|dispatch:->|name:demo|wrap:1|modifiers:protected|params:[param|variadic:1|type:string|default:0]|type:?\\Vendor\\Thing', $callable->toIdentityKey());
+
+    $property = new PropertyIdentity('counter', 'protected', true);
+    assertSameValue('Property identity objects should render the current key format.', 'property|name:counter|visibility:protected|static:1', $property->toIdentityKey());
+
+    $constant = new ConstantIdentity('STATUS', "'ok'");
+    assertSameValue('Constant identity objects should render the current key format.', "constant|name:STATUS|value:'ok'", $constant->toIdentityKey());
 }
 
 function testSignatureIndexPreservesAllDisplaysForOneIdentity(): void {

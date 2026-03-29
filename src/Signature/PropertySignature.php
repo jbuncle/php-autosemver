@@ -42,12 +42,11 @@ class PropertySignature implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return implode('|', [
-            'property',
-            'name:' . $this->name,
-            'visibility:' . $this->visibility,
-            'static:' . ($this->isStatic ? '1' : '0'),
-        ]);
+        return $this->getIdentity()->toIdentityKey();
+    }
+
+    public function getIdentity(): PropertyIdentity {
+        return new PropertyIdentity($this->name, $this->visibility, $this->isStatic);
     }
 
     public function __toString(): string {
