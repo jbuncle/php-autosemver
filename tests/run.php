@@ -24,6 +24,19 @@ function assertContainsText(string $message, string $needle, string $haystack): 
     }
 }
 
+function assertThrowsContains(string $message, string $expectedText, callable $callback): void {
+    try {
+        $callback();
+    } catch (Throwable $throwable) {
+        if (strpos($throwable->getMessage(), $expectedText) === false) {
+            throw new RuntimeException($message . " Expected exception containing '" . $expectedText . "', got '" . $throwable->getMessage() . "'.");
+        }
+        return;
+    }
+
+    throw new RuntimeException($message . ' Expected an exception to be thrown.');
+}
+
 function assertSameList(string $message, array $expected, array $actual): void {
     sort($expected);
     sort($actual);
@@ -513,6 +526,139 @@ PHP,
     ], $signatures);
 }
 
+
+function testRootAnchoredGitIgnorePatternsAreHonoured(): void {
+    $root = createRepository('gitignore-root-anchored', [
+        '.gitignore' => "/ignored.php
+",
+        'src/Foo.php' => "<?php
+namespace Demo;
+class Foo { public function stableMethod() {} }
+",
+    ]);
+
+    writeFile($root . '/ignored.php', "<?php
+namespace Demo;
+class IgnoredSignature { public function newMethod() {} }
+");
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Root-anchored gitignore entries should ignore matching root files.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testSignatureSearchWrapsParseFailures(): void {
+    $root = createRepository('parse-failure', [
+        'src/Broken.php' => "<?php
+namespace Demo;
+function broken( {}
+",
+    ]);
+
+    assertThrowsContains('Parse failures should be wrapped with the source file path.', "Failed to process 'src/Broken.php'", function () use ($root): void {
+        getSignaturesForFiles($root, ['src/Broken.php']);
+    });
+}
+
+function testSignatureSearchIgnoresFunctionImports(): void {
+    $root = createRepository('function-import', [
+        'src/Functions.php' => <<<'PHP'
+<?php
+namespace Demo;
+use function Vendor\helper;
+function run(): void {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Functions.php']);
+    assertSameList('Non-class use imports should continue to be ignored by the signature scan.', [
+        '\Demo\run():void',
+    ], $signatures);
+}
+
+function testSignatureSearchFailsOnUnsupportedTopLevelStatements(): void {
+    $root = createRepository('unsupported-top-level', [
+        'src/Unsupported.php' => <<<'PHP'
+<?php
+try {
+    $value = 1;
+} catch (\Exception $exception) {
+}
+PHP,
+    ]);
+
+    $parser = (new PhpParser\ParserFactory())->create(PhpParser\ParserFactory::PREFER_PHP7);
+    $ast = $parser->parse(file_get_contents($root . '/src/Unsupported.php'));
+    $rootNamespace = new AutomaticSemver\Objects\RootNamespaceObject($ast);
+
+    assertThrowsContains('Unsupported top-level statements should fail fast with the original node type.', 'Unsupported type PhpParser\Node\Stmt\TryCatch', function () use ($rootNamespace): void {
+        $rootNamespace->getSignatures();
+    });
+}
+
+function testSignatureSearchIgnoresTraitUseStatementsInsideClasses(): void {
+    $root = createRepository('trait-use', [
+        'src/Traits.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait Helper {
+    public function assist() {}
+}
+class Worker {
+    use Helper;
+    public function run() {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Traits.php']);
+    assertSameList('Trait use statements inside classes should remain ignored instead of inlining trait members.', [
+        '\Demo\{Trait Helper}->assist()',
+        '\Demo\Worker->__construct()',
+        '\Demo\Worker->run()',
+    ], $signatures);
+}
+
+function testSignatureSearchFormatsPlainScalarClassConstants(): void {
+    $root = createRepository('plain-const-values', [
+        'src/Numbers.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Numbers {
+    public const COUNT = 3;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Numbers.php']);
+    assertSameList('Plain scalar class constants should keep their fallback formatting.', [
+        '\Demo\Numbers->__construct()',
+        '\Demo\Numbers::COUNT = 3',
+    ], $signatures);
+}
+
+function testCliPreloadFailuresAndUnknownOptions(): void {
+    $cli = new CLI();
+    assertThrowsContains('CLI should reject access to args before load.', 'Args not loaded', function () use ($cli): void {
+        $cli->getFrom();
+    });
+
+    assertThrowsContains('CLI should reject access to flags before load.', 'Options not loaded', function () use ($cli): void {
+        $cli->getProjectPath();
+    });
+
+    runWithArgv([
+        'php-autosemver',
+        '--mystery',
+        'v1.2.3',
+    ], function (): void {
+        $cli = new CLI();
+        $cli->load();
+
+        assertSameValue('Unknown long options should remain positional arguments.', '--mystery', $cli->getFrom());
+        assertSameValue('The following positional argument should still become the to revision.', 'v1.2.3', $cli->getTo());
+    });
+}
+
 function testDiffReportFormatting(): void {
     $report = new DiffReport('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
@@ -570,6 +716,7 @@ function testCliParsingAndDefaults(): void {
 
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
+testRootAnchoredGitIgnorePatternsAreHonoured();
 testIncludePathsRestrictTheSurface();
 testWorkingCopyNewSignatureIsMinor();
 testGitRevisionRemovalIsMajor();
@@ -586,10 +733,16 @@ testSignatureSearchCoversTraitsAndInterfaces();
 testSignatureSearchCoversNestedNamespaceFallbackTypes();
 testSignatureSearchCoversFullyQualifiedAndAbstractShapes();
 testSignatureSearchFormatsClassConstantUnaryValues();
+testSignatureSearchFormatsPlainScalarClassConstants();
 testSignatureSearchPrefersUseAliasesOverNamespaceFallback();
 testSignatureSearchCoversGroupedPropertyAndConstantDeclarations();
 testSignatureSearchCoversGlobalNamespaceShapes();
+testSignatureSearchWrapsParseFailures();
+testSignatureSearchIgnoresFunctionImports();
+testSignatureSearchFailsOnUnsupportedTopLevelStatements();
+testSignatureSearchIgnoresTraitUseStatementsInsideClasses();
 testDiffReportFormatting();
 testCliParsingAndDefaults();
+testCliPreloadFailuresAndUnknownOptions();
 
 echo "All tests passed\n";
