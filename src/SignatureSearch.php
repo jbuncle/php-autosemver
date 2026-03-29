@@ -7,6 +7,7 @@
 namespace AutomaticSemver;
 
 use AutomaticSemver\Objects\RootNamespaceObject;
+use AutomaticSemver\Signature\LegacySignature;
 use Exception;
 use PhpParser\ParserFactory;
 
@@ -18,6 +19,15 @@ use PhpParser\ParserFactory;
 class SignatureSearch {
 
     public function getSignatures(array $files): array {
+        return array_map(function (LegacySignature $signature): string {
+            return $signature->toLegacyString();
+        }, $this->getSignatureModels($files));
+    }
+
+    /**
+     * @return LegacySignature[]
+     */
+    public function getSignatureModels(array $files): array {
 
         $signatures = [];
         foreach ($files as $file) {
@@ -28,7 +38,7 @@ class SignatureSearch {
                 $ast = $parser->parse($code);
                 $rootNamespace = new RootNamespaceObject($ast);
 
-                foreach ($rootNamespace->getSignatures() as $signature) {
+                foreach ($rootNamespace->getSignatureModels() as $signature) {
                     $signatures[] = $signature;
                 }
             } catch (Exception $ex) {

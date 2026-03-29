@@ -6,6 +6,9 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\CallableSignature;
+use AutomaticSemver\Signature\LegacySignature;
+
 /**
  * FunctionObject
  *
@@ -18,21 +21,13 @@ class FunctionObject
         parent::__construct($classObject, $classMethodObj);
     }
 
-    protected function createSignatureForParams(array $methodParams, bool $doDefault, $returnType): string {
-
-        $sig = '';
-        $sig .= $this->getName();
-        $sig .= '(';
-        $sig .= $this->createParameterSignature($methodParams, $doDefault);
-        $sig = rtrim($sig, ' ');
-        $sig = rtrim($sig, ',');
-        $sig .= ')';
-
-        if ($returnType) {
-            $sig .= ':' . $this->getFullType($returnType);
-        }
-
-        return $sig;
+    protected function createSignatureModelForParams(array $methodParams, bool $doDefault, $returnType): LegacySignature {
+        return new CallableSignature(
+            '',
+            $this->getName(),
+            $this->createParameterSignatures($methodParams, $doDefault),
+            $returnType ? $this->getTypeReference($returnType) : null
+        );
     }
 
 }

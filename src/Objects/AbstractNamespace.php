@@ -6,6 +6,9 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\LegacySignature;
+use AutomaticSemver\Signature\PrefixedSignature;
+use AutomaticSemver\Signature\RawSignature;
 use AutomaticSemver\TypeLookup;
 use Exception;
 
@@ -14,7 +17,7 @@ use Exception;
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-abstract class AbstractNamespace implements Signatures, TypeLookup {
+abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
 
     public function getAbsoluteType($typeObj): string {
 
@@ -81,7 +84,25 @@ abstract class AbstractNamespace implements Signatures, TypeLookup {
 
     public abstract function getStatements(): array;
 
-    public abstract function getSignatures(): array;
+    public function getSignatures(): array {
+        return array_map(function (LegacySignature $signature): string {
+            return $signature->toLegacyString();
+        }, $this->getSignatureModels());
+    }
+
+    /**
+     * @return LegacySignature[]
+     */
+    public function getSignatureModels(): array {
+        $signatures = [];
+
+        foreach ($this->getObjects() as $object) {
+            foreach ($this->getModelsForObject($object) as $signature) {
+                $signatures[] = $this->prefixSignatureModel($signature);
+            }
+        }
+        return $signatures;
+    }
 
     public function getObjects(): array {
         $objects = [];
@@ -92,6 +113,23 @@ abstract class AbstractNamespace implements Signatures, TypeLookup {
             }
         }
         return $objects;
+    }
+
+    /**
+     * @return LegacySignature[]
+     */
+    private function getModelsForObject(Signatures $object): array {
+        if ($object instanceof SignatureModelProvider) {
+            return $object->getSignatureModels();
+        }
+
+        return array_map(function (string $signature): LegacySignature {
+            return new RawSignature($signature);
+        }, $object->getSignatures());
+    }
+
+    protected function prefixSignatureModel(LegacySignature $signature): LegacySignature {
+        return new PrefixedSignature($this->getPath(), $signature);
     }
 
     private function isIgnorable($stmt) {
@@ -117,7 +155,7 @@ abstract class AbstractNamespace implements Signatures, TypeLookup {
     }
 
     /**
-     * 
+     *
      * @param \PhpParser\Node\Stmt\Use_ $stmt
      * @return Signatures[]
      * @throws Exception

@@ -6,6 +6,10 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\DefaultValue;
+use AutomaticSemver\Signature\LegacySignature;
+use AutomaticSemver\Signature\ParameterSignature;
+use AutomaticSemver\Signature\TypeReference;
 use AutomaticSemver\TypeLookup;
 
 /**
@@ -13,7 +17,7 @@ use AutomaticSemver\TypeLookup;
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-abstract class AbstractFunction implements Signatures {
+abstract class AbstractFunction implements SignatureModelProvider {
 
     /**
      *
@@ -23,7 +27,7 @@ abstract class AbstractFunction implements Signatures {
 
     /**
      *
-     * @var \PhpParser\Node\FunctionLike 
+     * @var \PhpParser\Node\FunctionLike
      */
     protected $functionLikeObj;
 
@@ -33,6 +37,15 @@ abstract class AbstractFunction implements Signatures {
     }
 
     public function getSignatures(): array {
+        return array_map(function (LegacySignature $signature): string {
+            return $signature->toLegacyString();
+        }, $this->getSignatureModels());
+    }
+
+    /**
+     * @return LegacySignature[]
+     */
+    public function getSignatureModels(): array {
         $methodParams = $this->functionLikeObj->params;
 
         $sigs = [];
@@ -40,11 +53,11 @@ abstract class AbstractFunction implements Signatures {
         while (true) {
             $returnType = $this->functionLikeObj->returnType;
 
-            $sigs = array_merge($sigs, $this->createSignatureForParamsAndReturn($methodParams, true, $returnType));
+            $sigs = array_merge($sigs, $this->createSignatureModelsForParamsAndReturn($methodParams, true, $returnType));
 
             if (!empty($methodParams) && end($methodParams)->default) {
                 // Last param is a default
-                $sigs = array_merge($sigs, $this->createSignatureForParamsAndReturn($methodParams, false, $returnType));
+                $sigs = array_merge($sigs, $this->createSignatureModelsForParamsAndReturn($methodParams, false, $returnType));
             }
 
             if (empty($methodParams)) {
@@ -60,44 +73,58 @@ abstract class AbstractFunction implements Signatures {
         return $sigs;
     }
 
-    protected function createSignatureForParamsAndReturn(array $methodParams, bool $doDefault, $returnType): array {
-        $sigs = [];
-        $sigs[] = $this->createSignatureForParams($methodParams, $doDefault, $returnType);
-        return $sigs;
+    /**
+     * @return LegacySignature[]
+     */
+    protected function createSignatureModelsForParamsAndReturn(array $methodParams, bool $doDefault, $returnType): array {
+        return [$this->createSignatureModelForParams($methodParams, $doDefault, $returnType)];
     }
 
-    protected abstract function createSignatureForParams(array $methodParams, bool $doDefault, $returnType): string;
+    protected abstract function createSignatureModelForParams(array $methodParams, bool $doDefault, $returnType): LegacySignature;
 
-    protected function createParameterSignature(array $methodParams, bool $doDefault): string {
-        $sig = '';
+    /**
+     * @return ParameterSignature[]
+     */
+    protected function createParameterSignatures(array $methodParams, bool $doDefault): array {
+        $parameters = [];
         foreach ($methodParams as $param) {
-
-            if ($param->variadic) {
-                $sig .= "...";
-            }
-
-            $sig .= $this->getFullType($param->type) . '';
-
-            if ($doDefault && $param->default) {
-                if ($param->default instanceof \PhpParser\Node\Expr\Array_) {
-                    $sig .= ' = [';
-                    foreach ($param->default->items as $item) {
-                        $sig .= $item->value->value;
-                    }
-                    $sig .= ']';
-                } else if ($param->default instanceof \PhpParser\Node\Expr\ConstFetch) {
-                    $sig .= ' = ' . $param->default->name;
-                } else if ($param->default instanceof \PhpParser\Node\Expr\UnaryMinus) {
-                    $sig .= ' = -' . $param->default->expr->value;
-                } else if ($param->default instanceof \PhpParser\Node\Expr\UnaryPlus) {
-                    $sig .= ' = +' . $param->default->expr->value;
-                } else {
-                    $sig .= ' = ' . $param->default->value;
-                }
-            }
-            $sig .= ', ';
+            $parameters[] = new ParameterSignature(
+                $this->getTypeReference($param->type),
+                (bool) $param->variadic,
+                $this->createDefaultValue($param, $doDefault)
+            );
         }
-        return $sig;
+        return $parameters;
+    }
+
+    protected function getTypeReference($type): TypeReference {
+        return new TypeReference($this->getFullType($type));
+    }
+
+    private function createDefaultValue($param, bool $doDefault): ?DefaultValue {
+        if (!$doDefault || !$param->default) {
+            return null;
+        }
+
+        if ($param->default instanceof \PhpParser\Node\Expr\Array_) {
+            $value = '[';
+            foreach ($param->default->items as $item) {
+                $value .= $item->value->value;
+            }
+            $value .= ']';
+            return new DefaultValue($value);
+        }
+        if ($param->default instanceof \PhpParser\Node\Expr\ConstFetch) {
+            return new DefaultValue((string) $param->default->name);
+        }
+        if ($param->default instanceof \PhpParser\Node\Expr\UnaryMinus) {
+            return new DefaultValue('-' . $param->default->expr->value);
+        }
+        if ($param->default instanceof \PhpParser\Node\Expr\UnaryPlus) {
+            return new DefaultValue('+' . $param->default->expr->value);
+        }
+
+        return new DefaultValue((string) $param->default->value);
     }
 
     protected function getFullType($type): string {

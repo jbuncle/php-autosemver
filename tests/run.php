@@ -10,6 +10,12 @@ use AutomaticSemver\CLI;
 use AutomaticSemver\DiffReport;
 use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\SemVerDiff;
+use AutomaticSemver\Signature\CallableSignature;
+use AutomaticSemver\Signature\ConstantSignature;
+use AutomaticSemver\Signature\DefaultValue;
+use AutomaticSemver\Signature\ParameterSignature;
+use AutomaticSemver\Signature\PropertySignature;
+use AutomaticSemver\Signature\TypeReference;
 use AutomaticSemver\SignatureSearch;
 
 function assertSameValue(string $message, $expected, $actual): void {
@@ -116,6 +122,61 @@ function getSignaturesForFiles(string $root, array $files): array {
     }, $files);
 
     return $search->getSignatures($fileObjects);
+}
+
+
+function testLegacySignatureModelsRenderCurrentStrings(): void {
+    $callable = new CallableSignature('->', 'demo', [
+        new ParameterSignature(new TypeReference('string')),
+        new ParameterSignature(new TypeReference('int'), false, new DefaultValue('0')),
+    ], new TypeReference('?\Vendor\Thing'), ['protected', 'final'], true);
+    assertSameValue('Callable signature models should render the current legacy format.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', $callable->toLegacyString());
+    assertSameValue('Callable signature models should support string casting.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', (string) $callable);
+    assertContainsText('Callable signature identity should carry structural information.', 'callable|dispatch:->|name:demo', $callable->toIdentityKey());
+
+    $property = new PropertySignature('counter', 'protected static ');
+    assertSameValue('Property signature models should render the current legacy format.', 'protected static $counter', $property->toLegacyString());
+    assertSameValue('Property signature identity should be structural.', 'property|protected static |$counter', $property->toIdentityKey());
+
+    $constant = new ConstantSignature('STATUS', "'ok'");
+    assertSameValue('Constant signature models should render the current legacy format.', "::STATUS = 'ok'", (string) $constant);
+    assertSameValue('Constant signature identity should be structural.', "const|STATUS|value:'ok'", $constant->toIdentityKey());
+}
+
+
+function testParameterSignatureModelsRenderCurrentStrings(): void {
+    $variadic = new ParameterSignature(new TypeReference('string'), true);
+    assertSameValue('Variadic parameter signature models should render the current legacy format.', '...string', $variadic->toLegacyString());
+
+    $defaulted = new ParameterSignature(new TypeReference('int'), false, new DefaultValue('-1'));
+    assertSameValue('Default-value parameter signature models should render the current legacy format.', 'int = -1', (string) $defaulted);
+}
+
+
+function testTypeReferenceModelsRenderCurrentStrings(): void {
+    $type = new TypeReference('?\Vendor\Thing');
+    assertSameValue('Type reference models should render the current legacy format.', '?\Vendor\Thing', (string) $type);
+    assertSameValue('Type reference identity should be structural.', 'type:?\Vendor\Thing', $type->toIdentityKey());
+}
+
+function testSignatureIdentityKeepsCurrentDiffBehaviour(): void {
+    $root = createRepository('identity-diff', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public function demo(string $name) {} }
+PHP,
+    ]);
+
+    writeFile($root . '/src/Foo.php', <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public function demo(string $name, int $count = 0) {} }
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Identity-key diffing should preserve the current increment semantics.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testExcludePathsAreHonoured(): void {
@@ -714,6 +775,10 @@ function testCliParsingAndDefaults(): void {
     });
 }
 
+testLegacySignatureModelsRenderCurrentStrings();
+testParameterSignatureModelsRenderCurrentStrings();
+testTypeReferenceModelsRenderCurrentStrings();
+testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();
