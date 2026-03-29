@@ -6,6 +6,8 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\LegacySignature;
+
 /**
  * newPHPClass
  *
@@ -28,15 +30,8 @@ class RootNamespaceObject
         return $this->stmts;
     }
 
-    public function getSignatures(): array {
-        $signatures = [];
-
-        foreach ($this->getObjects() as $object) {
-            foreach ($object->getSignatures() as $signature) {
-                $signatures[] = $signature;
-            }
-        }
-        return $signatures;
+    protected function prefixSignatureModel(LegacySignature $signature): LegacySignature {
+        return $signature;
     }
 
 }

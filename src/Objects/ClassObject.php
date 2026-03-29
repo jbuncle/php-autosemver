@@ -6,6 +6,9 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\CallableSignature;
+use AutomaticSemver\Signature\LegacySignature;
+use AutomaticSemver\Signature\PrefixedSignature;
 
 /**
  * ClassObject
@@ -19,11 +22,14 @@ class ClassObject
         parent::__construct($namespaceObj, $obj);
     }
 
-    public function getSignatures(): array {
-        $signatures = parent::getSignatures();
+    /**
+     * @return LegacySignature[]
+     */
+    public function getSignatureModels(): array {
+        $signatures = parent::getSignatureModels();
         if (!$this->hasConstructor()) {
             // Add default constructor
-            $signatures[] = $this->getPath() . '->__construct()';
+            $signatures[] = new PrefixedSignature($this->getPath(), new CallableSignature('->', '__construct', [], null));
         }
         return $signatures;
     }

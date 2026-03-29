@@ -22,12 +22,15 @@ class ClassMethodObject
         parent::__construct($classObject, $classMethodObj);
     }
 
-    public function getSignatures(): array {
+    /**
+     * @return LegacySignature[]
+     */
+    public function getSignatureModels(): array {
         if ($this->functionLikeObj->isPrivate()) {
-            // Ignore private properties
+            // Ignore private methods
             return [];
         }
-        return parent::getSignatures();
+        return parent::getSignatureModels();
     }
 
     protected function createSignatureModelForParams(array $methodParams, bool $doDefault, $returnType): LegacySignature {

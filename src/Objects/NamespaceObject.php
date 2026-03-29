@@ -39,15 +39,4 @@ class NamespaceObject
         return $this->namespace->stmts;
     }
 
-    public function getSignatures(): array {
-        $signatures = [];
-
-        foreach ($this->getObjects() as $object) {
-            foreach ($object->getSignatures() as $signature) {
-                $signatures[] = $this->getPath() . $signature;
-            }
-        }
-        return $signatures;
-    }
-
 }
