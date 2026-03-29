@@ -22,7 +22,7 @@ class DefaultValue implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return $this->toLegacyString();
+        return 'default:' . $this->value;
     }
 
     public function __toString(): string {

@@ -81,7 +81,17 @@ class CallableSignature implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return $this->toLegacyString();
+        return implode('|', [
+            'callable',
+            'dispatch:' . $this->dispatch,
+            'name:' . $this->name,
+            'wrap:' . ($this->wrap ? '1' : '0'),
+            'modifiers:' . implode(',', $this->modifiers),
+            'params:[' . implode(',', array_map(function (ParameterSignature $parameter): string {
+                return $parameter->toIdentityKey();
+            }, $this->parameters)) . ']',
+            $this->returnType ? $this->returnType->toIdentityKey() : 'return:none',
+        ]);
     }
 
     public function __toString(): string {

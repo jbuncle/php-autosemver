@@ -22,7 +22,7 @@ class TypeReference implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return $this->toLegacyString();
+        return 'type:' . $this->type;
     }
 
     public function __toString(): string {

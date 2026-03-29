@@ -28,7 +28,7 @@ class PrefixedSignature implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return $this->toLegacyString();
+        return 'prefixed|' . $this->prefix . '|' . $this->signature->toIdentityKey();
     }
 
     public function __toString(): string {

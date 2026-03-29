@@ -132,7 +132,7 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
     ], new TypeReference('?\Vendor\Thing'), ['protected', 'final'], true);
     assertSameValue('Callable signature models should render the current legacy format.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', $callable->toLegacyString());
     assertSameValue('Callable signature models should support string casting.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', (string) $callable);
-    assertSameValue('Callable signature identity should default to the legacy string during the transition.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', $callable->toIdentityKey());
+    assertContainsText('Callable signature identity should carry structural information.', 'callable|dispatch:->|name:demo', $callable->toIdentityKey());
 
     $property = new PropertySignature('counter', 'protected static ');
     assertSameValue('Property signature models should render the current legacy format.', 'protected static $counter', $property->toLegacyString());
@@ -154,6 +154,7 @@ function testParameterSignatureModelsRenderCurrentStrings(): void {
 function testTypeReferenceModelsRenderCurrentStrings(): void {
     $type = new TypeReference('?\Vendor\Thing');
     assertSameValue('Type reference models should render the current legacy format.', '?\Vendor\Thing', (string) $type);
+    assertSameValue('Type reference identity should be structural.', 'type:?\Vendor\Thing', $type->toIdentityKey());
 }
 
 function testSignatureIdentityKeepsCurrentDiffBehaviour(): void {
