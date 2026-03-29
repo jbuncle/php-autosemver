@@ -186,6 +186,69 @@ function testExplicitDefaultConstructorIsPatch(): void {
     assertSameValue('Adding an explicit no-arg constructor should match the implicit constructor signature.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testOptionalParameterDefaultChangeIsMajor(): void {
+    $root = createRepository('default-change', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public function demo(string $name, int $count = 0) {} }
+PHP,
+    ]);
+
+    writeFile($root . '/src/Foo.php', <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public function demo(string $name, int $count = 1) {} }
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an optional default value currently counts as MAJOR because the formatted signature changes.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testPropertyVisibilityTighteningIsMajor(): void {
+    $root = createRepository('property-visibility', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public $value; }
+PHP,
+    ]);
+
+    writeFile($root . '/src/Foo.php', <<<'PHP'
+<?php
+namespace Demo;
+class Foo { protected $value; }
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Tightening property visibility should remain a MAJOR change.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testImportedAliasTargetChangeIsMajor(): void {
+    $root = createRepository('alias-target-change', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Original as Item;
+function build(Item $item): Item {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Foo.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Replacement as Item;
+function build(Item $item): Item {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing the fully resolved target behind an alias should remain MAJOR.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchCapturesCurrentModelShape(): void {
     $root = createRepository('signature-shape', [
         'src/Foo.php' => <<<'PHP'
@@ -512,6 +575,9 @@ testWorkingCopyNewSignatureIsMinor();
 testGitRevisionRemovalIsMajor();
 testOptionalParameterAdditionIsMinor();
 testExplicitDefaultConstructorIsPatch();
+testOptionalParameterDefaultChangeIsMajor();
+testPropertyVisibilityTighteningIsMajor();
+testImportedAliasTargetChangeIsMajor();
 testSignatureSearchCapturesCurrentModelShape();
 testSignatureSearchIgnoresPrivateMembers();
 testSignatureSearchFormatsDefaultValues();
