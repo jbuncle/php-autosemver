@@ -8,6 +8,7 @@ namespace AutomaticSemver;
 
 use AutomaticSemver\FileSearch\SystemFileSearch;
 use AutomaticSemver\GitSearch\GitSearch;
+use AutomaticSemver\Signature\IdentityKey;
 use AutomaticSemver\Signature\LegacySignature;
 
 /**
@@ -98,51 +99,83 @@ class SemVerDiff {
         $previous = $this->indexSignatures($signatureSearch->getSignatureModels($startFiles));
         $current = $this->indexSignatures($signatureSearch->getSignatureModels($endFiles));
 
-        $unchangedKeys = array_intersect(array_keys($current), array_keys($previous));
-        $newKeys = array_diff(array_keys($current), array_keys($previous));
-        $removedKeys = array_diff(array_keys($previous), array_keys($current));
+        $unchanged = [];
+        $new = [];
+        foreach ($current as $entry) {
+            $previousEntry = $this->findMatchingEntry($entry['identity'], $previous);
+            if ($previousEntry !== null) {
+                $unchanged = array_merge($unchanged, $entry['display']);
+            } else {
+                $new = array_merge($new, $entry['display']);
+            }
+        }
+
+        $removed = [];
+        foreach ($previous as $entry) {
+            if ($this->findMatchingEntry($entry['identity'], $current) === null) {
+                $removed = array_merge($removed, $entry['display']);
+            }
+        }
 
         return new DiffReport(
-                $startRevision,
-                $endRevision,
-                $this->mapSignatureKeysToStrings($unchangedKeys, $current),
-                $this->mapSignatureKeysToStrings($newKeys, $current),
-                $this->mapSignatureKeysToStrings($removedKeys, $previous)
+            $startRevision,
+            $endRevision,
+            $unchanged,
+            $new,
+            $removed
         );
     }
 
     /**
      * @param LegacySignature[] $signatures
-     * @return array<string, string[]>
+     * @return array<int, array{identity: IdentityKey, display: string[]}>
      */
     private function indexSignatures(array $signatures): array {
         $index = [];
         foreach ($signatures as $signature) {
-            $key = $signature->toIdentityKey();
-            $display = $signature->toLegacyString();
-            if (!array_key_exists($key, $index)) {
-                $index[$key] = [];
+            $matchedIndex = $this->findMatchingEntryIndex($signature, $index);
+            if ($matchedIndex === null) {
+                $index[] = [
+                    'identity' => $signature,
+                    'display' => [$signature->toLegacyString()],
+                ];
+                continue;
             }
-            if (!in_array($display, $index[$key], true)) {
-                $index[$key][] = $display;
+
+            if (!in_array($signature->toLegacyString(), $index[$matchedIndex]['display'], true)) {
+                $index[$matchedIndex]['display'][] = $signature->toLegacyString();
             }
         }
         return $index;
     }
 
     /**
-     * @param string[] $keys
-     * @param array<string, string[]> $index
-     * @return string[]
+     * @param array<int, array{identity: IdentityKey, display: string[]}> $entries
      */
-    private function mapSignatureKeysToStrings(array $keys, array $index): array {
-        $signatures = [];
-        foreach ($keys as $key) {
-            foreach ($index[$key] as $signature) {
-                $signatures[] = $signature;
+    private function findMatchingEntry(IdentityKey $identity, array $entries): ?array {
+        $matchedIndex = $this->findMatchingEntryIndex($identity, $entries);
+        if ($matchedIndex === null) {
+            return null;
+        }
+
+        return $entries[$matchedIndex];
+    }
+
+    /**
+     * @param array<int, array{identity: IdentityKey, display: string[]}> $entries
+     */
+    private function findMatchingEntryIndex(IdentityKey $identity, array $entries): ?int {
+        foreach ($entries as $index => $entry) {
+            if ($this->identitiesMatch($entry['identity'], $identity)) {
+                return $index;
             }
         }
-        return $signatures;
+
+        return null;
+    }
+
+    private function identitiesMatch(IdentityKey $left, IdentityKey $right): bool {
+        return $left->equals($right) || $right->equals($left);
     }
 
     private static function startsWithAny(string $str, array $prefixes) {

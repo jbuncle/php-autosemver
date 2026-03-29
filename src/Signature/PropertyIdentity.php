@@ -37,4 +37,11 @@ class PropertyIdentity implements IdentityKey {
             'static:' . ($this->isStatic ? '1' : '0'),
         ]);
     }
+
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->name === $other->name
+            && $this->visibility === $other->visibility
+            && $this->isStatic === $other->isStatic;
+    }
 }

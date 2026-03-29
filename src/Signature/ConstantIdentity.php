@@ -30,4 +30,10 @@ class ConstantIdentity implements IdentityKey {
             'value:' . $this->value,
         ]);
     }
+
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->name === $other->name
+            && $this->value === $other->value;
+    }
 }

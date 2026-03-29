@@ -20,4 +20,9 @@ class RawIdentityKey implements IdentityKey {
     public function toIdentityKey(): string {
         return $this->key;
     }
+
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->key === $other->key;
+    }
 }

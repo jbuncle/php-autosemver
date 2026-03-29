@@ -25,6 +25,11 @@ class TypeReference implements LegacySignature {
         return 'type:' . $this->type;
     }
 
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->type === $other->type;
+    }
+
     public function __toString(): string {
         return $this->toLegacyString();
     }

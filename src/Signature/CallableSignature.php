@@ -84,6 +84,14 @@ class CallableSignature implements LegacySignature {
         return $this->getIdentity()->toIdentityKey();
     }
 
+    public function equals(IdentityKey $other): bool {
+        if ($other instanceof self) {
+            return $this->getIdentity()->equals($other->getIdentity());
+        }
+
+        return $this->getIdentity()->equals($other);
+    }
+
     public function getIdentity(): CallableIdentity {
         return new CallableIdentity(
             $this->dispatch,
