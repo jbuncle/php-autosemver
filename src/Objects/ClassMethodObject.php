@@ -51,7 +51,7 @@ class ClassMethodObject
             $this->functionLikeObj->isStatic() ? '::' : '->',
             $this->getName(),
             $this->createParameterSignatures($methodParams, $doDefault),
-            $returnType ? $this->getFullType($returnType) : null,
+            $returnType ? $this->getTypeReference($returnType) : null,
             $modifiers,
             $wrap
         );

@@ -9,6 +9,7 @@ namespace AutomaticSemver\Objects;
 use AutomaticSemver\Signature\DefaultValue;
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\ParameterSignature;
+use AutomaticSemver\Signature\TypeReference;
 use AutomaticSemver\TypeLookup;
 
 /**
@@ -88,12 +89,16 @@ abstract class AbstractFunction implements Signatures {
         $parameters = [];
         foreach ($methodParams as $param) {
             $parameters[] = new ParameterSignature(
-                $this->getFullType($param->type),
+                $this->getTypeReference($param->type),
                 (bool) $param->variadic,
                 $this->createDefaultValue($param, $doDefault)
             );
         }
         return $parameters;
+    }
+
+    protected function getTypeReference($type): TypeReference {
+        return new TypeReference($this->getFullType($type));
     }
 
     private function createDefaultValue($param, bool $doDefault): ?DefaultValue {

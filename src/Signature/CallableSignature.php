@@ -26,7 +26,7 @@ class CallableSignature implements LegacySignature {
             string $dispatch,
             string $name,
             array $parameters,
-            ?string $returnType,
+            ?TypeReference $returnType,
             array $modifiers = [],
             bool $wrap = false
     ) {
@@ -49,7 +49,7 @@ class CallableSignature implements LegacySignature {
     private $name;
 
     /**
-     * @var string|null
+     * @var TypeReference|null
      */
     private $returnType;
 
@@ -69,8 +69,8 @@ class CallableSignature implements LegacySignature {
             return $parameter->toLegacyString();
         }, $this->parameters)) . ')';
 
-        if ($this->returnType !== null && $this->returnType !== '') {
-            $signature .= ':' . $this->returnType;
+        if ($this->returnType !== null) {
+            $signature .= ':' . $this->returnType->toLegacyString();
         }
 
         if ($this->wrap) {

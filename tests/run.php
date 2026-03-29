@@ -15,6 +15,7 @@ use AutomaticSemver\Signature\ConstantSignature;
 use AutomaticSemver\Signature\DefaultValue;
 use AutomaticSemver\Signature\ParameterSignature;
 use AutomaticSemver\Signature\PropertySignature;
+use AutomaticSemver\Signature\TypeReference;
 use AutomaticSemver\SignatureSearch;
 
 function assertSameValue(string $message, $expected, $actual): void {
@@ -126,9 +127,9 @@ function getSignaturesForFiles(string $root, array $files): array {
 
 function testLegacySignatureModelsRenderCurrentStrings(): void {
     $callable = new CallableSignature('->', 'demo', [
-        new ParameterSignature('string'),
-        new ParameterSignature('int', false, new DefaultValue('0')),
-    ], '?\Vendor\Thing', ['protected', 'final'], true);
+        new ParameterSignature(new TypeReference('string')),
+        new ParameterSignature(new TypeReference('int'), false, new DefaultValue('0')),
+    ], new TypeReference('?\Vendor\Thing'), ['protected', 'final'], true);
     assertSameValue('Callable signature models should render the current legacy format.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', $callable->toLegacyString());
     assertSameValue('Callable signature models should support string casting.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', (string) $callable);
 
@@ -141,11 +142,17 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
 
 
 function testParameterSignatureModelsRenderCurrentStrings(): void {
-    $variadic = new ParameterSignature('string', true);
+    $variadic = new ParameterSignature(new TypeReference('string'), true);
     assertSameValue('Variadic parameter signature models should render the current legacy format.', '...string', $variadic->toLegacyString());
 
-    $defaulted = new ParameterSignature('int', false, new DefaultValue('-1'));
+    $defaulted = new ParameterSignature(new TypeReference('int'), false, new DefaultValue('-1'));
     assertSameValue('Default-value parameter signature models should render the current legacy format.', 'int = -1', (string) $defaulted);
+}
+
+
+function testTypeReferenceModelsRenderCurrentStrings(): void {
+    $type = new TypeReference('?\Vendor\Thing');
+    assertSameValue('Type reference models should render the current legacy format.', '?\Vendor\Thing', (string) $type);
 }
 
 function testExcludePathsAreHonoured(): void {
@@ -746,6 +753,7 @@ function testCliParsingAndDefaults(): void {
 
 testLegacySignatureModelsRenderCurrentStrings();
 testParameterSignatureModelsRenderCurrentStrings();
+testTypeReferenceModelsRenderCurrentStrings();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();

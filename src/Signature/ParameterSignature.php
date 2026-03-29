@@ -9,7 +9,7 @@ namespace AutomaticSemver\Signature;
 class ParameterSignature implements LegacySignature {
 
     /**
-     * @var string
+     * @var TypeReference
      */
     private $type;
 
@@ -23,7 +23,7 @@ class ParameterSignature implements LegacySignature {
      */
     private $defaultValue;
 
-    public function __construct(string $type, bool $variadic = false, ?DefaultValue $defaultValue = null) {
+    public function __construct(TypeReference $type, bool $variadic = false, ?DefaultValue $defaultValue = null) {
         $this->type = $type;
         $this->variadic = $variadic;
         $this->defaultValue = $defaultValue;
@@ -35,7 +35,7 @@ class ParameterSignature implements LegacySignature {
             $parameter .= '...';
         }
 
-        $parameter .= $this->type;
+        $parameter .= $this->type->toLegacyString();
 
         if ($this->defaultValue !== null) {
             $parameter .= ' = ' . $this->defaultValue->toLegacyString();
