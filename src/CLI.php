@@ -23,7 +23,7 @@ class CLI {
 
     /**
      *
-     * @var array<string> 
+     * @var array<string>
      */
     private $args;
 
@@ -44,7 +44,7 @@ class CLI {
     private function getOption(string $option, string $default): string {
         $options = $this->getFlags();
         if (array_key_exists($option, $options)) {
-            return $options[$option];
+            return (string) $options[$option];
         }
 
         return $default;
@@ -52,9 +52,40 @@ class CLI {
 
     public function load() {
         global $argv;
-        $optind = 1;
-        $this->flags = getopt("", ["from", "to", "verbosity::", "project::"], $optind);
-        $this->args = array_splice($argv, $optind);
+
+        $knownOptions = ['from', 'to', 'verbosity', 'project'];
+        $this->flags = [];
+        $this->args = [];
+
+        $rawArgs = array_slice($argv, 1);
+        for ($index = 0; $index < count($rawArgs); $index++) {
+            $arg = $rawArgs[$index];
+            if (strpos($arg, '--') !== 0) {
+                $this->args[] = $arg;
+                continue;
+            }
+
+            $option = substr($arg, 2);
+            $parts = explode('=', $option, 2);
+            $optionName = $parts[0];
+            if (!in_array($optionName, $knownOptions, true)) {
+                $this->args[] = $arg;
+                continue;
+            }
+
+            if (array_key_exists(1, $parts)) {
+                $this->flags[$optionName] = $parts[1];
+                continue;
+            }
+
+            $nextIndex = $index + 1;
+            if (array_key_exists($nextIndex, $rawArgs) && strpos($rawArgs[$nextIndex], '--') !== 0) {
+                $this->flags[$optionName] = $rawArgs[$nextIndex];
+                $index++;
+            } else {
+                $this->flags[$optionName] = '';
+            }
+        }
     }
 
     public function getProjectPath(): string {
