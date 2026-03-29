@@ -136,9 +136,11 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
 
     $property = new PropertySignature('counter', 'protected static ');
     assertSameValue('Property signature models should render the current legacy format.', 'protected static $counter', $property->toLegacyString());
+    assertSameValue('Property signature identity should be structural.', 'property|protected static |$counter', $property->toIdentityKey());
 
     $constant = new ConstantSignature('STATUS', "'ok'");
     assertSameValue('Constant signature models should render the current legacy format.', "::STATUS = 'ok'", (string) $constant);
+    assertSameValue('Constant signature identity should be structural.', "const|STATUS|value:'ok'", $constant->toIdentityKey());
 }
 
 

@@ -28,7 +28,7 @@ class PropertySignature implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return $this->toLegacyString();
+        return 'property|' . $this->prefix . '|$' . $this->name;
     }
 
     public function __toString(): string {
