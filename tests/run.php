@@ -12,6 +12,8 @@ use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\SemVerDiff;
 use AutomaticSemver\Signature\CallableSignature;
 use AutomaticSemver\Signature\ConstantSignature;
+use AutomaticSemver\Signature\DefaultValue;
+use AutomaticSemver\Signature\ParameterSignature;
 use AutomaticSemver\Signature\PropertySignature;
 use AutomaticSemver\SignatureSearch;
 
@@ -123,7 +125,10 @@ function getSignaturesForFiles(string $root, array $files): array {
 
 
 function testLegacySignatureModelsRenderCurrentStrings(): void {
-    $callable = new CallableSignature('->', 'demo', ['string', 'int = 0'], '?\Vendor\Thing', ['protected', 'final'], true);
+    $callable = new CallableSignature('->', 'demo', [
+        new ParameterSignature('string'),
+        new ParameterSignature('int', false, new DefaultValue('0')),
+    ], '?\Vendor\Thing', ['protected', 'final'], true);
     assertSameValue('Callable signature models should render the current legacy format.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', $callable->toLegacyString());
     assertSameValue('Callable signature models should support string casting.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', (string) $callable);
 
@@ -132,6 +137,15 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
 
     $constant = new ConstantSignature('STATUS', "'ok'");
     assertSameValue('Constant signature models should render the current legacy format.', "::STATUS = 'ok'", (string) $constant);
+}
+
+
+function testParameterSignatureModelsRenderCurrentStrings(): void {
+    $variadic = new ParameterSignature('string', true);
+    assertSameValue('Variadic parameter signature models should render the current legacy format.', '...string', $variadic->toLegacyString());
+
+    $defaulted = new ParameterSignature('int', false, new DefaultValue('-1'));
+    assertSameValue('Default-value parameter signature models should render the current legacy format.', 'int = -1', (string) $defaulted);
 }
 
 function testExcludePathsAreHonoured(): void {
@@ -731,6 +745,7 @@ function testCliParsingAndDefaults(): void {
 }
 
 testLegacySignatureModelsRenderCurrentStrings();
+testParameterSignatureModelsRenderCurrentStrings();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();

@@ -50,7 +50,7 @@ class ClassMethodObject
         return new CallableSignature(
             $this->functionLikeObj->isStatic() ? '::' : '->',
             $this->getName(),
-            $this->createParameterTypes($methodParams, $doDefault),
+            $this->createParameterSignatures($methodParams, $doDefault),
             $returnType ? $this->getFullType($returnType) : null,
             $modifiers,
             $wrap

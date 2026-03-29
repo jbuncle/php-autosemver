@@ -6,7 +6,9 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\DefaultValue;
 use AutomaticSemver\Signature\LegacySignature;
+use AutomaticSemver\Signature\ParameterSignature;
 use AutomaticSemver\TypeLookup;
 
 /**
@@ -80,40 +82,44 @@ abstract class AbstractFunction implements Signatures {
     protected abstract function createSignatureModelForParams(array $methodParams, bool $doDefault, $returnType): LegacySignature;
 
     /**
-     * @return string[]
+     * @return ParameterSignature[]
      */
-    protected function createParameterTypes(array $methodParams, bool $doDefault): array {
-        $types = [];
+    protected function createParameterSignatures(array $methodParams, bool $doDefault): array {
+        $parameters = [];
         foreach ($methodParams as $param) {
-            $type = '';
-
-            if ($param->variadic) {
-                $type .= '...';
-            }
-
-            $type .= $this->getFullType($param->type);
-
-            if ($doDefault && $param->default) {
-                if ($param->default instanceof \PhpParser\Node\Expr\Array_) {
-                    $type .= ' = [';
-                    foreach ($param->default->items as $item) {
-                        $type .= $item->value->value;
-                    }
-                    $type .= ']';
-                } else if ($param->default instanceof \PhpParser\Node\Expr\ConstFetch) {
-                    $type .= ' = ' . $param->default->name;
-                } else if ($param->default instanceof \PhpParser\Node\Expr\UnaryMinus) {
-                    $type .= ' = -' . $param->default->expr->value;
-                } else if ($param->default instanceof \PhpParser\Node\Expr\UnaryPlus) {
-                    $type .= ' = +' . $param->default->expr->value;
-                } else {
-                    $type .= ' = ' . $param->default->value;
-                }
-            }
-
-            $types[] = $type;
+            $parameters[] = new ParameterSignature(
+                $this->getFullType($param->type),
+                (bool) $param->variadic,
+                $this->createDefaultValue($param, $doDefault)
+            );
         }
-        return $types;
+        return $parameters;
+    }
+
+    private function createDefaultValue($param, bool $doDefault): ?DefaultValue {
+        if (!$doDefault || !$param->default) {
+            return null;
+        }
+
+        if ($param->default instanceof \PhpParser\Node\Expr\Array_) {
+            $value = '[';
+            foreach ($param->default->items as $item) {
+                $value .= $item->value->value;
+            }
+            $value .= ']';
+            return new DefaultValue($value);
+        }
+        if ($param->default instanceof \PhpParser\Node\Expr\ConstFetch) {
+            return new DefaultValue((string) $param->default->name);
+        }
+        if ($param->default instanceof \PhpParser\Node\Expr\UnaryMinus) {
+            return new DefaultValue('-' . $param->default->expr->value);
+        }
+        if ($param->default instanceof \PhpParser\Node\Expr\UnaryPlus) {
+            return new DefaultValue('+' . $param->default->expr->value);
+        }
+
+        return new DefaultValue((string) $param->default->value);
     }
 
     protected function getFullType($type): string {

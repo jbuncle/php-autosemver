@@ -25,7 +25,7 @@ class FunctionObject
         return new CallableSignature(
             '',
             $this->getName(),
-            $this->createParameterTypes($methodParams, $doDefault),
+            $this->createParameterSignatures($methodParams, $doDefault),
             $returnType ? $this->getFullType($returnType) : null
         );
     }

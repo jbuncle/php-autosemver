@@ -14,25 +14,25 @@ class CallableSignature implements LegacySignature {
     private $modifiers;
 
     /**
-     * @var string[]
+     * @var ParameterSignature[]
      */
-    private $parameterTypes;
+    private $parameters;
 
     /**
-     * @param string[] $parameterTypes
+     * @param ParameterSignature[] $parameters
      * @param string[] $modifiers
      */
     public function __construct(
             string $dispatch,
             string $name,
-            array $parameterTypes,
+            array $parameters,
             ?string $returnType,
             array $modifiers = [],
             bool $wrap = false
     ) {
         $this->dispatch = $dispatch;
         $this->name = $name;
-        $this->parameterTypes = $parameterTypes;
+        $this->parameters = $parameters;
         $this->returnType = $returnType;
         $this->modifiers = $modifiers;
         $this->wrap = $wrap;
@@ -65,7 +65,9 @@ class CallableSignature implements LegacySignature {
         }
 
         $signature .= $this->name;
-        $signature .= '(' . implode(', ', $this->parameterTypes) . ')';
+        $signature .= '(' . implode(', ', array_map(function (ParameterSignature $parameter): string {
+            return $parameter->toLegacyString();
+        }, $this->parameters)) . ')';
 
         if ($this->returnType !== null && $this->returnType !== '') {
             $signature .= ':' . $this->returnType;
