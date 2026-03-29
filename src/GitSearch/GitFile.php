@@ -7,6 +7,7 @@
 namespace AutomaticSemver\GitSearch;
 
 use AutomaticSemver\FileI;
+use RuntimeException;
 
 /**
  * GitFile
@@ -41,8 +42,17 @@ class GitFile
     }
 
     public function getContent(): string {
-        $cmd = "git show $this->revision:$this->relativePath";
-        exec("cd $this->rootPath ; $cmd", $output);
+        $cmd = sprintf(
+            'cd %s && git show %s',
+            escapeshellarg($this->rootPath),
+            escapeshellarg($this->revision . ':' . $this->relativePath)
+        );
+        $output = [];
+        $resultCode = 0;
+        exec($cmd, $output, $resultCode);
+        if ($resultCode !== 0) {
+            throw new RuntimeException('Failed to load file content from git');
+        }
         return implode("\n", $output);
     }
 
