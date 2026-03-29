@@ -32,6 +32,18 @@ class DiffReport {
     private $entries;
 
     /**
+     *
+     * @var IncrementDecider
+     */
+    private $incrementDecider;
+
+    /**
+     *
+     * @var DiffReportRenderer
+     */
+    private $renderer;
+
+    /**
      * @param string[]|DiffEntries $unchangedSignatures
      * @param string[] $newSignatures
      * @param string[] $removedSignatures
@@ -39,6 +51,8 @@ class DiffReport {
     public function __construct($from, $to, $unchangedSignatures, $newSignatures = [], $removedSignatures = []) {
         $this->from = $from;
         $this->to = $to;
+        $this->incrementDecider = new IncrementDecider();
+        $this->renderer = new DiffReportRenderer($this->incrementDecider);
         if ($unchangedSignatures instanceof DiffEntries) {
             $this->entries = $unchangedSignatures;
             return;
@@ -53,31 +67,7 @@ class DiffReport {
      * @return string
      */
     public function toString(int $level): string {
-        $str = "";
-        if ($level >= 1) {
-            $str .= "Comparing $this->from => $this->to\n";
-        }
-        if ($level >= 2) {
-            $str .= "Unchanged:\n";
-            foreach ($this->getUnchangedSignatures() as $unchangedSignature) {
-                $str .= "\t$unchangedSignature\n";
-            }
-        }
-        if ($level >= 1) {
-
-            $str .= "New:\n";
-            foreach ($this->getNewSignatures() as $newSignature) {
-                $str .= "\t$newSignature\n";
-            }
-
-            $str .= "Removed:\n";
-            foreach ($this->getRemovedSignatures() as $removedSignature) {
-                $str .= "\t$removedSignature\n";
-            }
-        }
-
-        $str .= $this->getIncrement();
-        return $str;
+        return $this->renderer->render($this->from, $this->to, $this->entries, $level);
     }
 
     /**
@@ -106,13 +96,7 @@ class DiffReport {
      * @return "MAJOR"|"MINOR"|"PATCH"
      */
     public function getIncrement(): string {
-        if ($this->entries->hasRemoved()) {
-            return "MAJOR";
-        } else if ($this->entries->hasNew()) {
-            return "MINOR";
-        } else {
-            return "PATCH";
-        }
+        return $this->incrementDecider->decide($this->entries);
     }
 
 }
