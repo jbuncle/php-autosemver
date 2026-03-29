@@ -14,7 +14,7 @@ class PrefixedSignature implements LegacySignature {
     private $legacyPrefix;
 
     /**
-     * @var string
+     * @var IdentityKey
      */
     private $identityPrefix;
 
@@ -23,9 +23,9 @@ class PrefixedSignature implements LegacySignature {
      */
     private $signature;
 
-    public function __construct(string $legacyPrefix, LegacySignature $signature, ?string $identityPrefix = null) {
+    public function __construct(string $legacyPrefix, LegacySignature $signature, ?IdentityKey $identityPrefix = null) {
         $this->legacyPrefix = $legacyPrefix;
-        $this->identityPrefix = $identityPrefix ?? $legacyPrefix;
+        $this->identityPrefix = $identityPrefix ?? new RawIdentityKey($legacyPrefix);
         $this->signature = $signature;
     }
 
@@ -34,7 +34,7 @@ class PrefixedSignature implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return 'prefixed|' . $this->identityPrefix . '|' . $this->signature->toIdentityKey();
+        return 'prefixed|' . $this->identityPrefix->toIdentityKey() . '|' . $this->signature->toIdentityKey();
     }
 
     public function __toString(): string {

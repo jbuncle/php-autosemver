@@ -13,7 +13,9 @@ use AutomaticSemver\SemVerDiff;
 use AutomaticSemver\Signature\CallableSignature;
 use AutomaticSemver\Signature\ConstantSignature;
 use AutomaticSemver\Signature\DefaultValue;
+use AutomaticSemver\Signature\ContainerIdentity;
 use AutomaticSemver\Signature\LegacySignature;
+use AutomaticSemver\Signature\NamespaceIdentity;
 use AutomaticSemver\Signature\ParameterSignature;
 use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\PropertySignature;
@@ -172,11 +174,19 @@ function testPrefixedSignatureCanSeparateIdentityFromLegacyFormatting(): void {
     $signature = new PrefixedSignature(
         '{abstract Foo}',
         new CallableSignature('->', 'demo', [], null),
-        'container|kind:class|name:Foo|abstract:1|final:0'
+        new ContainerIdentity('class', 'Foo', true, false)
     );
 
     assertSameValue('Prefixed signatures should keep the current legacy rendering.', '{abstract Foo}->demo()', $signature->toLegacyString());
     assertContainsText('Prefixed signatures should use the supplied semantic identity prefix.', 'prefixed|container|kind:class|name:Foo|abstract:1|final:0|callable|dispatch:->|name:demo', $signature->toIdentityKey());
+}
+
+function testExplicitIdentityObjectsRenderStableKeys(): void {
+    $namespace = new NamespaceIdentity('\\Demo\\');
+    assertSameValue('Namespace identity objects should render the current key format.', 'namespace:\\Demo\\', $namespace->toIdentityKey());
+
+    $container = new ContainerIdentity('class', 'Foo', true, false);
+    assertSameValue('Container identity objects should render the current key format.', 'container|kind:class|name:Foo|abstract:1|final:0', $container->toIdentityKey());
 }
 
 function testSignatureIndexPreservesAllDisplaysForOneIdentity(): void {
@@ -820,6 +830,7 @@ testLegacySignatureModelsRenderCurrentStrings();
 testParameterSignatureModelsRenderCurrentStrings();
 testTypeReferenceModelsRenderCurrentStrings();
 testPrefixedSignatureCanSeparateIdentityFromLegacyFormatting();
+testExplicitIdentityObjectsRenderStableKeys();
 testSignatureIndexPreservesAllDisplaysForOneIdentity();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();

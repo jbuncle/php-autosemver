@@ -6,7 +6,9 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\IdentityKey;
 use AutomaticSemver\Signature\LegacySignature;
+use AutomaticSemver\Signature\NamespaceIdentity;
 use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\RawSignature;
 use AutomaticSemver\TypeLookup;
@@ -128,8 +130,8 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
         }, $object->getSignatures());
     }
 
-    protected function getIdentityPath(): string {
-        return 'namespace:' . $this->getPath();
+    protected function getIdentityPath(): IdentityKey {
+        return new NamespaceIdentity($this->getPath());
     }
 
     protected function prefixSignatureModel(LegacySignature $signature): LegacySignature {

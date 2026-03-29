@@ -6,9 +6,7 @@
 
 namespace AutomaticSemver\Signature;
 
-interface LegacySignature extends IdentityKey {
+interface IdentityKey {
 
-    public function toLegacyString(): string;
-
-    public function __toString(): string;
+    public function toIdentityKey(): string;
 }

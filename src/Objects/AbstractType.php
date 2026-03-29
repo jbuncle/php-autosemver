@@ -6,6 +6,8 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\ContainerIdentity;
+use AutomaticSemver\Signature\IdentityKey;
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\RawSignature;
@@ -73,19 +75,13 @@ abstract class AbstractType
         return $this->getTypeName();
     }
 
-    protected function getIdentityPrefix(): string {
-        $parts = [
-            'container',
-            'kind:' . $this->getTypeKind(),
-            'name:' . $this->getTypeName(),
-        ];
-
-        if ($this->obj instanceof \PhpParser\Node\Stmt\Class_) {
-            $parts[] = 'abstract:' . ($this->obj->isAbstract() ? '1' : '0');
-            $parts[] = 'final:' . ($this->obj->isFinal() ? '1' : '0');
-        }
-
-        return implode('|', $parts);
+    protected function getIdentityPrefix(): IdentityKey {
+        return new ContainerIdentity(
+            $this->getTypeKind(),
+            $this->getTypeName(),
+            $this->isAbstractType(),
+            $this->isFinalType()
+        );
     }
 
     protected function getTypeName(): string {
@@ -100,6 +96,14 @@ abstract class AbstractType
             return 'trait';
         }
         return 'class';
+    }
+
+    private function isAbstractType(): bool {
+        return $this->obj instanceof \PhpParser\Node\Stmt\Class_ && $this->obj->isAbstract();
+    }
+
+    private function isFinalType(): bool {
+        return $this->obj instanceof \PhpParser\Node\Stmt\Class_ && $this->obj->isFinal();
     }
 
     /**
