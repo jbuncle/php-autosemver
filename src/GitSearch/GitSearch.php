@@ -6,6 +6,8 @@
 
 namespace AutomaticSemver\GitSearch;
 
+use RuntimeException;
+
 /**
  * GitSearch
  *
@@ -29,9 +31,17 @@ class GitSearch {
      * @return GitFile[]
      */
     public function findFiles(string $root, string $revision): array {
-        $cmd = "git ls-tree -r --name-only '$revision'";
+        $cmd = sprintf(
+            'cd %s && git ls-tree -r --name-only %s',
+            escapeshellarg($root),
+            escapeshellarg($revision)
+        );
         $files = [];
-        exec("cd $root ; $cmd", $files);
+        $resultCode = 0;
+        exec($cmd, $files, $resultCode);
+        if ($resultCode !== 0) {
+            throw new RuntimeException('Failed to list files from git');
+        }
 
         $gitFiles = [];
         foreach ($files as $relPath) {
