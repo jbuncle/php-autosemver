@@ -8,7 +8,9 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 
 use AutomaticSemver\CLI;
 use AutomaticSemver\DiffReport;
+use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\SemVerDiff;
+use AutomaticSemver\SignatureSearch;
 
 function assertSameValue(string $message, $expected, $actual): void {
     if ($expected !== $actual) {
@@ -19,6 +21,18 @@ function assertSameValue(string $message, $expected, $actual): void {
 function assertContainsText(string $message, string $needle, string $haystack): void {
     if (strpos($haystack, $needle) === false) {
         throw new RuntimeException($message . " Missing '" . $needle . "'.");
+    }
+}
+
+function assertSameList(string $message, array $expected, array $actual): void {
+    sort($expected);
+    sort($actual);
+    if ($expected !== $actual) {
+        throw new RuntimeException(
+            $message
+            . " Expected '\n" . implode("\n", $expected)
+            . "\n', got '\n" . implode("\n", $actual) . "\n'."
+        );
     }
 }
 
@@ -82,6 +96,15 @@ function runWithArgv(array $newArgv, callable $callback): void {
     }
 }
 
+function getSignaturesForFiles(string $root, array $files): array {
+    $search = new SignatureSearch();
+    $fileObjects = array_map(function (string $relativePath) use ($root): SystemFile {
+        return new SystemFile($root, $relativePath);
+    }, $files);
+
+    return $search->getSignatures($fileObjects);
+}
+
 function testExcludePathsAreHonoured(): void {
     $root = createRepository('exclude-paths', [
         '.gitignore' => "",
@@ -141,6 +164,80 @@ function testGitRevisionRemovalIsMajor(): void {
     assertSameValue('Removing a signature between revisions should be MAJOR.', 'MAJOR', $diff->diff('HEAD~1', 'HEAD')->getIncrement());
 }
 
+function testOptionalParameterAdditionIsMinor(): void {
+    $root = createRepository('optional-param', [
+        'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function demo(string \$name) {} }\n",
+    ]);
+
+    writeFile($root . '/src/Foo.php', "<?php\nnamespace Demo;\nclass Foo { public function demo(string \$name, int \$count = 0) {} }\n");
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Adding an optional parameter should remain backward compatible and be MINOR.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testExplicitDefaultConstructorIsPatch(): void {
+    $root = createRepository('constructor', [
+        'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo {}\n",
+    ]);
+
+    writeFile($root . '/src/Foo.php', "<?php\nnamespace Demo;\nclass Foo { public function __construct() {} }\n");
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Adding an explicit no-arg constructor should match the implicit constructor signature.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testSignatureSearchCapturesCurrentModelShape(): void {
+    $root = createRepository('signature-shape', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Bar as Baz;
+final class Foo {
+    public const STATUS = 'ok';
+    public $visible;
+    private $hidden;
+
+    public function demo(string $name, int $count = 0): ?Baz {}
+    protected static function build(): self {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Foo.php']);
+    assertSameList('The signature model should include current public/protected API shapes.', [
+        '\\Demo\\{final Foo}::STATUS = \'ok\'',
+        '\\Demo\\{final Foo}$visible',
+        '\\Demo\\{final Foo}->__construct()',
+        '\\Demo\\{final Foo}->demo(string, int = 0):?\\Vendor\\Package\\Bar',
+        '\\Demo\\{final Foo}->demo(string, int):?\\Vendor\\Package\\Bar',
+        '\\Demo\\{final Foo}->demo(string):?\\Vendor\\Package\\Bar',
+        '\\Demo\\{final Foo}::{protected build():self}',
+    ], $signatures);
+}
+
+function testSignatureSearchIgnoresPrivateMembers(): void {
+    $root = createRepository('private-members', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo {
+    private $hidden;
+    public $visible;
+
+    private function hiddenMethod() {}
+    public function visibleMethod() {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Foo.php']);
+    assertSameList('Private members should not appear in the signature set.', [
+        '\\Demo\\Foo$visible',
+        '\\Demo\\Foo->__construct()',
+        '\\Demo\\Foo->visibleMethod()',
+    ], $signatures);
+}
+
 function testDiffReportFormatting(): void {
     $report = new DiffReport('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
@@ -182,6 +279,18 @@ function testCliParsingAndDefaults(): void {
         assertSameValue('CLI should parse verbosity when the value is separate.', 1, $cli->getVerbosity());
         assertSameValue('CLI should parse project path when the value is separate.', '/tmp/second-project', $cli->getProjectPath());
     });
+
+    runWithArgv([
+        'php-autosemver',
+        '--from=v3.0.0',
+        '--to=HEAD~2',
+    ], function (): void {
+        $cli = new CLI();
+        $cli->load();
+
+        assertSameValue('CLI should accept --from as a fallback when no positional revision is supplied.', 'v3.0.0', $cli->getFrom());
+        assertSameValue('CLI should accept --to as a fallback when no positional revision is supplied.', 'HEAD~2', $cli->getTo());
+    });
 }
 
 testExcludePathsAreHonoured();
@@ -189,6 +298,10 @@ testGitIgnoreInlineCommentsAreIgnored();
 testIncludePathsRestrictTheSurface();
 testWorkingCopyNewSignatureIsMinor();
 testGitRevisionRemovalIsMajor();
+testOptionalParameterAdditionIsMinor();
+testExplicitDefaultConstructorIsPatch();
+testSignatureSearchCapturesCurrentModelShape();
+testSignatureSearchIgnoresPrivateMembers();
 testDiffReportFormatting();
 testCliParsingAndDefaults();
 
