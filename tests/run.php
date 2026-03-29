@@ -238,6 +238,44 @@ PHP,
     ], $signatures);
 }
 
+
+function testSignatureSearchResolvesNullableAndImportedTypes(): void {
+    $root = createRepository('type-resolution', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Thing as Alias;
+use Vendor\Package\Other;
+
+function build(?Alias $item, Other $other = null): ?Alias {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Types.php']);
+    assertSameList('Imported and nullable types should resolve to the current signature strings.', [
+        '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other = null):?\Vendor\Package\Thing',
+        '\Demo\build(?\Vendor\Package\Thing):?\Vendor\Package\Thing',
+    ], $signatures);
+}
+
+function testSignatureSearchPreservesProtectedAndStaticPropertyMarkers(): void {
+    $root = createRepository('property-markers', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo {
+    protected static $counter;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Foo.php']);
+    assertSameList('Protected static properties should keep their current marker shape.', [
+        '\Demo\Foo->__construct()',
+        '\Demo\Fooprotected static $counter',
+    ], $signatures);
+}
+
 function testDiffReportFormatting(): void {
     $report = new DiffReport('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
