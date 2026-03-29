@@ -30,5 +30,24 @@ jobs:
       - name: Lint PHP files
         run: find src bin tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 
-      - name: Run regression tests
-        run: php tests/run.php
+      - name: Run regression tests with coverage
+        env:
+          COVERAGE_MIN: '90'
+          COVERAGE_JSON: coverage.json
+          COVERAGE_SUMMARY: coverage-summary.md
+        run: phpdbg -qrr tests/coverage.php
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          if [ -f coverage-summary.md ]; then
+            cat coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-autosemver-coverage
+          path: coverage.json
+          if-no-files-found: ignore

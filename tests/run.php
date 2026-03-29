@@ -24,6 +24,19 @@ function assertContainsText(string $message, string $needle, string $haystack): 
     }
 }
 
+function assertThrowsContains(string $message, string $expectedText, callable $callback): void {
+    try {
+        $callback();
+    } catch (Throwable $throwable) {
+        if (strpos($throwable->getMessage(), $expectedText) === false) {
+            throw new RuntimeException($message . " Expected exception containing '" . $expectedText . "', got '" . $throwable->getMessage() . "'.");
+        }
+        return;
+    }
+
+    throw new RuntimeException($message . ' Expected an exception to be thrown.');
+}
+
 function assertSameList(string $message, array $expected, array $actual): void {
     sort($expected);
     sort($actual);
@@ -186,6 +199,69 @@ function testExplicitDefaultConstructorIsPatch(): void {
     assertSameValue('Adding an explicit no-arg constructor should match the implicit constructor signature.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testOptionalParameterDefaultChangeIsMajor(): void {
+    $root = createRepository('default-change', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public function demo(string $name, int $count = 0) {} }
+PHP,
+    ]);
+
+    writeFile($root . '/src/Foo.php', <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public function demo(string $name, int $count = 1) {} }
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an optional default value currently counts as MAJOR because the formatted signature changes.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testPropertyVisibilityTighteningIsMajor(): void {
+    $root = createRepository('property-visibility', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public $value; }
+PHP,
+    ]);
+
+    writeFile($root . '/src/Foo.php', <<<'PHP'
+<?php
+namespace Demo;
+class Foo { protected $value; }
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Tightening property visibility should remain a MAJOR change.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testImportedAliasTargetChangeIsMajor(): void {
+    $root = createRepository('alias-target-change', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Original as Item;
+function build(Item $item): Item {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Foo.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Replacement as Item;
+function build(Item $item): Item {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing the fully resolved target behind an alias should remain MAJOR.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchCapturesCurrentModelShape(): void {
     $root = createRepository('signature-shape', [
         'src/Foo.php' => <<<'PHP'
@@ -236,6 +312,351 @@ PHP,
         '\\Demo\\Foo->__construct()',
         '\\Demo\\Foo->visibleMethod()',
     ], $signatures);
+}
+
+
+function testSignatureSearchResolvesNullableAndImportedTypes(): void {
+    $root = createRepository('type-resolution', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Thing as Alias;
+use Vendor\Package\Other;
+
+function build(?Alias $item, Other $other = null): ?Alias {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Types.php']);
+    assertSameList('Imported and nullable types should resolve to the current signature strings.', [
+        '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other = null):?\Vendor\Package\Thing',
+        '\Demo\build(?\Vendor\Package\Thing):?\Vendor\Package\Thing',
+    ], $signatures);
+}
+
+function testSignatureSearchPreservesProtectedAndStaticPropertyMarkers(): void {
+    $root = createRepository('property-markers', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo {
+    protected static $counter;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Foo.php']);
+    assertSameList('Protected static properties should keep their current marker shape.', [
+        '\Demo\Foo->__construct()',
+        '\Demo\Fooprotected static $counter',
+    ], $signatures);
+}
+
+
+function testSignatureSearchFormatsDefaultValues(): void {
+    $root = createRepository('default-values', [
+        'src/Defaults.php' => <<<'PHP'
+<?php
+namespace Demo;
+function build(array $items = [], $mode = SOME_CONST, int $offset = -1): void {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Defaults.php']);
+    assertSameList('Default values should retain the current string formatting rules.', [
+        '\Demo\build():void',
+        '\Demo\build(array = [], mixed = SOME_CONST, int = -1):void',
+        '\Demo\build(array, mixed, int):void',
+        '\Demo\build(array = [], mixed = SOME_CONST):void',
+        '\Demo\build(array, mixed):void',
+        '\Demo\build(array = []):void',
+        '\Demo\build(array):void',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversVariadicStaticMethods(): void {
+    $root = createRepository('variadic-static', [
+        'src/Bag.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Bag {
+    public static function collect(string ...$items): array {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Bag.php']);
+    assertSameList('Variadic static methods should preserve their current signature string shape.', [
+        '\Demo\Bag->__construct()',
+        '\Demo\Bag::collect(...string):array',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversTraitsAndInterfaces(): void {
+    $root = createRepository('trait-interface', [
+        'src/Contracts.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait Helper {
+    protected function assist() {}
+}
+interface Contract {
+    public function run();
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Contracts.php']);
+    assertSameList('Traits and interfaces should keep their current signature representation.', [
+        '\Demo\{Trait Helper}->{protected assist()}',
+        '\Demo\Contract->run()',
+    ], $signatures);
+}
+
+
+function testSignatureSearchCoversNestedNamespaceFallbackTypes(): void {
+    $root = createRepository('nested-namespace', [
+        'src/Nested.php' => <<<'PHP'
+<?php
+namespace Demo\Inner;
+class LocalType {}
+function build(LocalType $item): LocalType {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Nested.php']);
+    assertSameList('Unimported types should fall back to the current namespace path.', [
+        '\Demo\Inner\LocalType->__construct()',
+        '\Demo\Inner\build(\Demo\Inner\LocalType):\Demo\Inner\LocalType',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversFullyQualifiedAndAbstractShapes(): void {
+    $root = createRepository('fqcn-abstract', [
+        'src/Shapes.php' => <<<'PHP'
+<?php
+namespace Demo;
+abstract class Base {
+    final protected function make(\DateTimeImmutable $when): \DateTimeImmutable {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Shapes.php']);
+    assertSameList('Abstract/final wrappers and fully qualified names should retain their current shape.', [
+        '\Demo\{abstract Base}->__construct()',
+        '\Demo\{abstract Base}->{protected final make(\DateTimeImmutable):\DateTimeImmutable}',
+    ], $signatures);
+}
+
+function testSignatureSearchFormatsClassConstantUnaryValues(): void {
+    $root = createRepository('const-values', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const NEGATIVE = -1;
+    public const POSITIVE = +2;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Class constant unary values should retain their current formatting.', [
+        '\Demo\Values->__construct()',
+        '\Demo\Values::NEGATIVE = -1',
+        '\Demo\Values::POSITIVE = +2',
+    ], $signatures);
+}
+
+
+function testSignatureSearchPrefersUseAliasesOverNamespaceFallback(): void {
+    $root = createRepository('alias-precedence', [
+        'src/Alias.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\LocalType;
+class LocalType {}
+function build(LocalType $item): LocalType {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Alias.php']);
+    assertSameList('Imported aliases should keep taking precedence over same-named local types.', [
+        '\Demo\LocalType->__construct()',
+        '\Demo\build(\Vendor\Package\LocalType):\Vendor\Package\LocalType',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversGroupedPropertyAndConstantDeclarations(): void {
+    $root = createRepository('grouped-declarations', [
+        'src/Fields.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Fields {
+    public $one, $two;
+    public const FIRST = 'a', SECOND = 'b';
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Fields.php']);
+    assertSameList('Grouped property and constant declarations should emit separate signatures in their current shape.', [
+        '\Demo\Fields$one',
+        '\Demo\Fields$two',
+        '\Demo\Fields->__construct()',
+        '\Demo\Fields::FIRST = \'a\'',
+        '\Demo\Fields::SECOND = \'b\'',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversGlobalNamespaceShapes(): void {
+    $root = createRepository('global-namespace', [
+        'src/GlobalCode.php' => <<<'PHP'
+<?php
+class GlobalThing {}
+function make(int $value): int {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/GlobalCode.php']);
+    assertSameList('Global namespace symbols should retain their current root-level signature shape.', [
+        'GlobalThing->__construct()',
+        'make(int):int',
+    ], $signatures);
+}
+
+
+function testRootAnchoredGitIgnorePatternsAreHonoured(): void {
+    $root = createRepository('gitignore-root-anchored', [
+        '.gitignore' => "/ignored.php
+",
+        'src/Foo.php' => "<?php
+namespace Demo;
+class Foo { public function stableMethod() {} }
+",
+    ]);
+
+    writeFile($root . '/ignored.php', "<?php
+namespace Demo;
+class IgnoredSignature { public function newMethod() {} }
+");
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Root-anchored gitignore entries should ignore matching root files.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testSignatureSearchWrapsParseFailures(): void {
+    $root = createRepository('parse-failure', [
+        'src/Broken.php' => "<?php
+namespace Demo;
+function broken( {}
+",
+    ]);
+
+    assertThrowsContains('Parse failures should be wrapped with the source file path.', "Failed to process 'src/Broken.php'", function () use ($root): void {
+        getSignaturesForFiles($root, ['src/Broken.php']);
+    });
+}
+
+function testSignatureSearchIgnoresFunctionImports(): void {
+    $root = createRepository('function-import', [
+        'src/Functions.php' => <<<'PHP'
+<?php
+namespace Demo;
+use function Vendor\helper;
+function run(): void {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Functions.php']);
+    assertSameList('Non-class use imports should continue to be ignored by the signature scan.', [
+        '\Demo\run():void',
+    ], $signatures);
+}
+
+function testSignatureSearchFailsOnUnsupportedTopLevelStatements(): void {
+    $root = createRepository('unsupported-top-level', [
+        'src/Unsupported.php' => <<<'PHP'
+<?php
+try {
+    $value = 1;
+} catch (\Exception $exception) {
+}
+PHP,
+    ]);
+
+    $parser = (new PhpParser\ParserFactory())->create(PhpParser\ParserFactory::PREFER_PHP7);
+    $ast = $parser->parse(file_get_contents($root . '/src/Unsupported.php'));
+    $rootNamespace = new AutomaticSemver\Objects\RootNamespaceObject($ast);
+
+    assertThrowsContains('Unsupported top-level statements should fail fast with the original node type.', 'Unsupported type PhpParser\Node\Stmt\TryCatch', function () use ($rootNamespace): void {
+        $rootNamespace->getSignatures();
+    });
+}
+
+function testSignatureSearchIgnoresTraitUseStatementsInsideClasses(): void {
+    $root = createRepository('trait-use', [
+        'src/Traits.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait Helper {
+    public function assist() {}
+}
+class Worker {
+    use Helper;
+    public function run() {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Traits.php']);
+    assertSameList('Trait use statements inside classes should remain ignored instead of inlining trait members.', [
+        '\Demo\{Trait Helper}->assist()',
+        '\Demo\Worker->__construct()',
+        '\Demo\Worker->run()',
+    ], $signatures);
+}
+
+function testSignatureSearchFormatsPlainScalarClassConstants(): void {
+    $root = createRepository('plain-const-values', [
+        'src/Numbers.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Numbers {
+    public const COUNT = 3;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Numbers.php']);
+    assertSameList('Plain scalar class constants should keep their fallback formatting.', [
+        '\Demo\Numbers->__construct()',
+        '\Demo\Numbers::COUNT = 3',
+    ], $signatures);
+}
+
+function testCliPreloadFailuresAndUnknownOptions(): void {
+    $cli = new CLI();
+    assertThrowsContains('CLI should reject access to args before load.', 'Args not loaded', function () use ($cli): void {
+        $cli->getFrom();
+    });
+
+    assertThrowsContains('CLI should reject access to flags before load.', 'Options not loaded', function () use ($cli): void {
+        $cli->getProjectPath();
+    });
+
+    runWithArgv([
+        'php-autosemver',
+        '--mystery',
+        'v1.2.3',
+    ], function (): void {
+        $cli = new CLI();
+        $cli->load();
+
+        assertSameValue('Unknown long options should remain positional arguments.', '--mystery', $cli->getFrom());
+        assertSameValue('The following positional argument should still become the to revision.', 'v1.2.3', $cli->getTo());
+    });
 }
 
 function testDiffReportFormatting(): void {
@@ -295,14 +716,33 @@ function testCliParsingAndDefaults(): void {
 
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
+testRootAnchoredGitIgnorePatternsAreHonoured();
 testIncludePathsRestrictTheSurface();
 testWorkingCopyNewSignatureIsMinor();
 testGitRevisionRemovalIsMajor();
 testOptionalParameterAdditionIsMinor();
 testExplicitDefaultConstructorIsPatch();
+testOptionalParameterDefaultChangeIsMajor();
+testPropertyVisibilityTighteningIsMajor();
+testImportedAliasTargetChangeIsMajor();
 testSignatureSearchCapturesCurrentModelShape();
 testSignatureSearchIgnoresPrivateMembers();
+testSignatureSearchFormatsDefaultValues();
+testSignatureSearchCoversVariadicStaticMethods();
+testSignatureSearchCoversTraitsAndInterfaces();
+testSignatureSearchCoversNestedNamespaceFallbackTypes();
+testSignatureSearchCoversFullyQualifiedAndAbstractShapes();
+testSignatureSearchFormatsClassConstantUnaryValues();
+testSignatureSearchFormatsPlainScalarClassConstants();
+testSignatureSearchPrefersUseAliasesOverNamespaceFallback();
+testSignatureSearchCoversGroupedPropertyAndConstantDeclarations();
+testSignatureSearchCoversGlobalNamespaceShapes();
+testSignatureSearchWrapsParseFailures();
+testSignatureSearchIgnoresFunctionImports();
+testSignatureSearchFailsOnUnsupportedTopLevelStatements();
+testSignatureSearchIgnoresTraitUseStatementsInsideClasses();
 testDiffReportFormatting();
 testCliParsingAndDefaults();
+testCliPreloadFailuresAndUnknownOptions();
 
 echo "All tests passed\n";
