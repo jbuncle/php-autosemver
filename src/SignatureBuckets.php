@@ -7,8 +7,27 @@
 namespace AutomaticSemver;
 
 use AutomaticSemver\Signature\IdentityKey;
+use AutomaticSemver\Signature\LegacySignature;
 
 class SignatureBuckets {
+
+    /**
+     * @param LegacySignature[] $signatures
+     */
+    public static function fromSignatures(array $signatures): self {
+        $buckets = [];
+        foreach ($signatures as $signature) {
+            $matchedBucket = (new self($buckets))->findMatching($signature);
+            if ($matchedBucket === null) {
+                $buckets[] = new SignatureBucket($signature, [$signature->toLegacyString()]);
+                continue;
+            }
+
+            $matchedBucket->addDisplay($signature->toLegacyString());
+        }
+
+        return new self($buckets);
+    }
 
     /**
      * @var SignatureBucket[]

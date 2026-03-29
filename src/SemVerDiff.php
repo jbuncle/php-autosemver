@@ -8,7 +8,6 @@ namespace AutomaticSemver;
 
 use AutomaticSemver\FileSearch\SystemFileSearch;
 use AutomaticSemver\GitSearch\GitSearch;
-use AutomaticSemver\Signature\LegacySignature;
 
 /**
  * SemVerDiff
@@ -95,8 +94,8 @@ class SemVerDiff {
         $startFiles = $this->getFilesForLabel($startRevision, $filter);
         $endFiles = $this->getFilesForLabel($endRevision, $filter);
 
-        $previous = new SignatureBuckets($this->indexSignatures($signatureSearch->getSignatureModels($startFiles)));
-        $current = new SignatureBuckets($this->indexSignatures($signatureSearch->getSignatureModels($endFiles)));
+        $previous = SignatureBuckets::fromSignatures($signatureSearch->getSignatureModels($startFiles));
+        $current = SignatureBuckets::fromSignatures($signatureSearch->getSignatureModels($endFiles));
         $snapshot = new SignatureDiffSnapshot($previous, $current);
 
         return DiffReport::fromEntries(
@@ -104,24 +103,6 @@ class SemVerDiff {
             $endRevision,
             $snapshot->toEntries()
         );
-    }
-
-    /**
-     * @param LegacySignature[] $signatures
-     * @return SignatureBucket[]
-     */
-    private function indexSignatures(array $signatures): array {
-        $index = [];
-        foreach ($signatures as $signature) {
-            $matchedBucket = (new SignatureBuckets($index))->findMatching($signature);
-            if ($matchedBucket === null) {
-                $index[] = new SignatureBucket($signature, [$signature->toLegacyString()]);
-                continue;
-            }
-
-            $matchedBucket->addDisplay($signature->toLegacyString());
-        }
-        return $index;
     }
 
     private static function startsWithAny(string $str, array $prefixes) {
