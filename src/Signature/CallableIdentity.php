@@ -64,4 +64,39 @@ class CallableIdentity implements IdentityKey {
             $this->returnType ? $this->returnType->toIdentityKey() : 'return:none',
         ]);
     }
+
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->dispatch === $other->dispatch
+            && $this->name === $other->name
+            && $this->wrap === $other->wrap
+            && $this->modifiers === $other->modifiers
+            && $this->parametersMatch($other->parameters)
+            && $this->identityMatches($this->returnType, $other->returnType);
+    }
+
+    /**
+     * @param IdentityKey[] $otherParameters
+     */
+    private function parametersMatch(array $otherParameters): bool {
+        if (count($this->parameters) !== count($otherParameters)) {
+            return false;
+        }
+
+        foreach ($this->parameters as $index => $parameter) {
+            if (!$parameter->equals($otherParameters[$index])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function identityMatches(?IdentityKey $left, ?IdentityKey $right): bool {
+        if ($left === null || $right === null) {
+            return $left === $right;
+        }
+
+        return $left->equals($right);
+    }
 }

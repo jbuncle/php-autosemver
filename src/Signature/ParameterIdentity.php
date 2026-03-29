@@ -37,4 +37,19 @@ class ParameterIdentity implements IdentityKey {
             $this->defaultValue ? $this->defaultValue->toIdentityKey() : 'default:none',
         ]);
     }
+
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->variadic === $other->variadic
+            && $this->type->equals($other->type)
+            && $this->identityMatches($this->defaultValue, $other->defaultValue);
+    }
+
+    private function identityMatches(?IdentityKey $left, ?IdentityKey $right): bool {
+        if ($left === null || $right === null) {
+            return $left === $right;
+        }
+
+        return $left->equals($right);
+    }
 }

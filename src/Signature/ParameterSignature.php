@@ -48,6 +48,14 @@ class ParameterSignature implements LegacySignature {
         return $this->getIdentity()->toIdentityKey();
     }
 
+    public function equals(IdentityKey $other): bool {
+        if ($other instanceof self) {
+            return $this->getIdentity()->equals($other->getIdentity());
+        }
+
+        return $this->getIdentity()->equals($other);
+    }
+
     public function getIdentity(): ParameterIdentity {
         return new ParameterIdentity($this->type, $this->variadic, $this->defaultValue);
     }

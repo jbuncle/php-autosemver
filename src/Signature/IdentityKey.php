@@ -9,4 +9,6 @@ namespace AutomaticSemver\Signature;
 interface IdentityKey {
 
     public function toIdentityKey(): string;
+
+    public function equals(IdentityKey $other): bool;
 }

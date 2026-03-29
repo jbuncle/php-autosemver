@@ -25,6 +25,11 @@ class DefaultValue implements LegacySignature {
         return 'default:' . $this->value;
     }
 
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->value === $other->value;
+    }
+
     public function __toString(): string {
         return $this->toLegacyString();
     }

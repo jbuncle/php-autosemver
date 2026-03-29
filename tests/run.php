@@ -17,6 +17,7 @@ use AutomaticSemver\Signature\ConstantSignature;
 use AutomaticSemver\Signature\DefaultValue;
 use AutomaticSemver\Signature\ParameterIdentity;
 use AutomaticSemver\Signature\ContainerIdentity;
+use AutomaticSemver\Signature\IdentityKey;
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\NamespaceIdentity;
 use AutomaticSemver\Signature\ParameterSignature;
@@ -25,6 +26,8 @@ use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\PropertySignature;
 use AutomaticSemver\Signature\TypeReference;
 use AutomaticSemver\SignatureSearch;
+
+interface SemanticallyEqualIdentity {}
 
 function assertSameValue(string $message, $expected, $actual): void {
     if ($expected !== $actual) {
@@ -35,6 +38,12 @@ function assertSameValue(string $message, $expected, $actual): void {
 function assertContainsText(string $message, string $needle, string $haystack): void {
     if (strpos($haystack, $needle) === false) {
         throw new RuntimeException($message . " Missing '" . $needle . "'.");
+    }
+}
+
+function assertTrue(string $message, bool $condition): void {
+    if (!$condition) {
+        throw new RuntimeException($message);
     }
 }
 
@@ -205,25 +214,79 @@ function testExplicitIdentityObjectsRenderStableKeys(): void {
     assertSameValue('Constant identity objects should render the current key format.', "constant|name:STATUS|value:'ok'", $constant->toIdentityKey());
 }
 
+function testIdentityEqualityUsesSemanticObjectComparison(): void {
+    $left = new CallableIdentity(
+        '->',
+        'demo',
+        [new ParameterIdentity(new TypeReference('string'), true, new DefaultValue('0'))],
+        new TypeReference('?\\Vendor\\Thing'),
+        ['protected'],
+        true
+    );
+    $right = new CallableIdentity(
+        '->',
+        'demo',
+        [new ParameterIdentity(new TypeReference('string'), true, new DefaultValue('0'))],
+        new TypeReference('?\\Vendor\\Thing'),
+        ['protected'],
+        true
+    );
+    $different = new CallableIdentity(
+        '->',
+        'demo',
+        [new ParameterIdentity(new TypeReference('string'), false, new DefaultValue('0'))],
+        new TypeReference('?\\Vendor\\Thing'),
+        ['protected'],
+        true
+    );
+
+    assertTrue('Identity objects should compare equal by semantic structure.', $left->equals($right));
+    assertTrue('Identity equality should detect semantic differences.', !$left->equals($different));
+}
+
+function testSemanticDiffUsesIdentityEqualityNotOnlySerializedKeys(): void {
+    $diff = new SemVerDiff(sys_get_temp_dir(), [], []);
+    $left = new class implements LegacySignature {
+        public function toLegacyString(): string { return '\\Demo\\One->demo()'; }
+        public function toIdentityKey(): string { return 'callable|name:demo'; }
+        public function equals(IdentityKey $other): bool { return $other instanceof self || $other instanceof SemanticallyEqualIdentity; }
+        public function __toString(): string { return $this->toLegacyString(); }
+    };
+    $right = new class implements LegacySignature, SemanticallyEqualIdentity {
+        public function toLegacyString(): string { return '\\Demo\\One->demo()'; }
+        public function toIdentityKey(): string { return 'totally-different-key'; }
+        public function equals(IdentityKey $other): bool { return $other instanceof self || $other instanceof SemanticallyEqualIdentity; }
+        public function __toString(): string { return $this->toLegacyString(); }
+    };
+
+    $previous = invokePrivateMethod($diff, 'indexSignatures', [[$left]]);
+    $current = invokePrivateMethod($diff, 'indexSignatures', [[$right]]);
+    $matched = invokePrivateMethod($diff, 'findMatchingEntry', [$left, $current]);
+
+    assertTrue('Semantic diff lookups should use equality rather than serialized keys alone.', $matched !== null);
+}
+
 function testSignatureIndexPreservesAllDisplaysForOneIdentity(): void {
     $diff = new SemVerDiff(sys_get_temp_dir(), [], []);
     $signatures = [
         new class implements LegacySignature {
-            public function toLegacyString(): string { return '\\Demo\\One->demo()'; }
+            public function toLegacyString(): string { return '\Demo\One->demo()'; }
             public function toIdentityKey(): string { return 'callable|name:demo'; }
+            public function equals(IdentityKey $other): bool { return $other->toIdentityKey() === $this->toIdentityKey(); }
             public function __toString(): string { return $this->toLegacyString(); }
         },
         new class implements LegacySignature {
-            public function toLegacyString(): string { return '\\Demo\\Two->demo()'; }
+            public function toLegacyString(): string { return '\Demo\Two->demo()'; }
             public function toIdentityKey(): string { return 'callable|name:demo'; }
+            public function equals(IdentityKey $other): bool { return $other->toIdentityKey() === $this->toIdentityKey(); }
             public function __toString(): string { return $this->toLegacyString(); }
         },
     ];
 
     $index = invokePrivateMethod($diff, 'indexSignatures', [$signatures]);
-    $rendered = invokePrivateMethod($diff, 'mapSignatureKeysToStrings', [['callable|name:demo'], $index]);
+    $rendered = invokePrivateMethod($diff, 'findMatchingEntry', [$signatures[0], $index]);
 
-    assertSameList('Semantic identity buckets should preserve every legacy display string for reporting.', ['\\Demo\\One->demo()', '\\Demo\\Two->demo()'], $rendered);
+    assertSameList('Semantic identity buckets should preserve every legacy display string for reporting.', ['\Demo\One->demo()', '\Demo\Two->demo()'], $rendered['display']);
 }
 
 function testSignatureIdentityKeepsCurrentDiffBehaviour(): void {
@@ -847,6 +910,8 @@ testParameterSignatureModelsRenderCurrentStrings();
 testTypeReferenceModelsRenderCurrentStrings();
 testPrefixedSignatureCanSeparateIdentityFromLegacyFormatting();
 testExplicitIdentityObjectsRenderStableKeys();
+testIdentityEqualityUsesSemanticObjectComparison();
+testSemanticDiffUsesIdentityEqualityNotOnlySerializedKeys();
 testSignatureIndexPreservesAllDisplaysForOneIdentity();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();

@@ -31,6 +31,14 @@ class ConstantSignature implements LegacySignature {
         return $this->getIdentity()->toIdentityKey();
     }
 
+    public function equals(IdentityKey $other): bool {
+        if ($other instanceof self) {
+            return $this->getIdentity()->equals($other->getIdentity());
+        }
+
+        return $this->getIdentity()->equals($other);
+    }
+
     public function getIdentity(): ConstantIdentity {
         return new ConstantIdentity($this->name, $this->value);
     }

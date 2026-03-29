@@ -20,4 +20,9 @@ class NamespaceIdentity implements IdentityKey {
     public function toIdentityKey(): string {
         return 'namespace:' . $this->path;
     }
+
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->path === $other->path;
+    }
 }

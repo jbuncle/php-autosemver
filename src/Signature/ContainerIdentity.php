@@ -49,4 +49,12 @@ class ContainerIdentity implements IdentityKey {
 
         return implode('|', $parts);
     }
+
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->kind === $other->kind
+            && $this->name === $other->name
+            && $this->isAbstract === $other->isAbstract
+            && $this->isFinal === $other->isFinal;
+    }
 }

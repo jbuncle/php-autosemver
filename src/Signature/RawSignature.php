@@ -25,6 +25,11 @@ class RawSignature implements LegacySignature {
         return $this->toLegacyString();
     }
 
+    public function equals(IdentityKey $other): bool {
+        return $other instanceof self
+            && $this->signature === $other->signature;
+    }
+
     public function __toString(): string {
         return $this->toLegacyString();
     }
