@@ -88,7 +88,9 @@ abstract class AbstractFunction implements Signatures {
                 } else if ($param->default instanceof \PhpParser\Node\Expr\ConstFetch) {
                     $sig .= ' = ' . $param->default->name;
                 } else if ($param->default instanceof \PhpParser\Node\Expr\UnaryMinus) {
-                    $sig .= ' = ' . $param->default->value;
+                    $sig .= ' = -' . $param->default->expr->value;
+                } else if ($param->default instanceof \PhpParser\Node\Expr\UnaryPlus) {
+                    $sig .= ' = +' . $param->default->expr->value;
                 } else {
                     $sig .= ' = ' . $param->default->value;
                 }

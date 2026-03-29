@@ -276,6 +276,67 @@ PHP,
     ], $signatures);
 }
 
+
+function testSignatureSearchFormatsDefaultValues(): void {
+    $root = createRepository('default-values', [
+        'src/Defaults.php' => <<<'PHP'
+<?php
+namespace Demo;
+function build(array $items = [], $mode = SOME_CONST, int $offset = -1): void {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Defaults.php']);
+    assertSameList('Default values should retain the current string formatting rules.', [
+        '\Demo\build():void',
+        '\Demo\build(array = [], mixed = SOME_CONST, int = -1):void',
+        '\Demo\build(array, mixed, int):void',
+        '\Demo\build(array = [], mixed = SOME_CONST):void',
+        '\Demo\build(array, mixed):void',
+        '\Demo\build(array = []):void',
+        '\Demo\build(array):void',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversVariadicStaticMethods(): void {
+    $root = createRepository('variadic-static', [
+        'src/Bag.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Bag {
+    public static function collect(string ...$items): array {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Bag.php']);
+    assertSameList('Variadic static methods should preserve their current signature string shape.', [
+        '\Demo\Bag->__construct()',
+        '\Demo\Bag::collect(...string):array',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversTraitsAndInterfaces(): void {
+    $root = createRepository('trait-interface', [
+        'src/Contracts.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait Helper {
+    protected function assist() {}
+}
+interface Contract {
+    public function run();
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Contracts.php']);
+    assertSameList('Traits and interfaces should keep their current signature representation.', [
+        '\Demo\{Trait Helper}->{protected assist()}',
+        '\Demo\Contract->run()',
+    ], $signatures);
+}
+
 function testDiffReportFormatting(): void {
     $report = new DiffReport('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
@@ -340,6 +401,9 @@ testOptionalParameterAdditionIsMinor();
 testExplicitDefaultConstructorIsPatch();
 testSignatureSearchCapturesCurrentModelShape();
 testSignatureSearchIgnoresPrivateMembers();
+testSignatureSearchFormatsDefaultValues();
+testSignatureSearchCoversVariadicStaticMethods();
+testSignatureSearchCoversTraitsAndInterfaces();
 testDiffReportFormatting();
 testCliParsingAndDefaults();
 
