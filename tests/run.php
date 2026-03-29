@@ -373,6 +373,8 @@ function testDiffReportNamedConstructorsPreserveBehaviour(): void {
     assertSameValue('Entry-backed reports should preserve the from label.', 'from-tag', $entryReport->getFrom());
     assertSameValue('Entry-backed reports should preserve the to label.', 'to-tag', $entryReport->getTo());
     assertSameValue('Legacy-display report construction should preserve increment semantics.', 'MAJOR', $legacyReport->getIncrement());
+    assertSameValue('Legacy-display reports should preserve the from label.', 'from-tag', $legacyReport->getFrom());
+    assertSameValue('Legacy-display reports should preserve the to label.', 'to-tag', $legacyReport->getTo());
     assertContainsText('Entry-backed report construction should preserve rendering.', "	sameSignature", $entryReport->toString(2));
     assertContainsText('Legacy-display report construction should preserve rendering.', "	removedSignature", $legacyReport->toString(1));
 }

@@ -13,8 +13,13 @@ namespace AutomaticSemver;
  */
 class DiffReport {
 
+    private static function fromRangeAndEntries(RevisionRange $range, DiffEntries $entries): self {
+        $report = new self($range, null, $entries);
+        return $report;
+    }
+
     public static function fromEntries(string $from, string $to, DiffEntries $entries): self {
-        return new self(new RevisionRange($from, $to), null, $entries);
+        return self::fromRangeAndEntries(new RevisionRange($from, $to), $entries);
     }
 
     /**
@@ -23,7 +28,10 @@ class DiffReport {
      * @param string[] $removedSignatures
      */
     public static function fromLegacyDisplays(string $from, string $to, array $unchangedSignatures, array $newSignatures, array $removedSignatures): self {
-        return new self(new RevisionRange($from, $to), null, $unchangedSignatures, $newSignatures, $removedSignatures);
+        return self::fromRangeAndEntries(
+            new RevisionRange($from, $to),
+            DiffEntries::fromLegacyDisplays($unchangedSignatures, $newSignatures, $removedSignatures)
+        );
     }
 
     /**
