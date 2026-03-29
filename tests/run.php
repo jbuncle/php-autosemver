@@ -337,6 +337,119 @@ PHP,
     ], $signatures);
 }
 
+
+function testSignatureSearchCoversNestedNamespaceFallbackTypes(): void {
+    $root = createRepository('nested-namespace', [
+        'src/Nested.php' => <<<'PHP'
+<?php
+namespace Demo\Inner;
+class LocalType {}
+function build(LocalType $item): LocalType {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Nested.php']);
+    assertSameList('Unimported types should fall back to the current namespace path.', [
+        '\Demo\Inner\LocalType->__construct()',
+        '\Demo\Inner\build(\Demo\Inner\LocalType):\Demo\Inner\LocalType',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversFullyQualifiedAndAbstractShapes(): void {
+    $root = createRepository('fqcn-abstract', [
+        'src/Shapes.php' => <<<'PHP'
+<?php
+namespace Demo;
+abstract class Base {
+    final protected function make(\DateTimeImmutable $when): \DateTimeImmutable {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Shapes.php']);
+    assertSameList('Abstract/final wrappers and fully qualified names should retain their current shape.', [
+        '\Demo\{abstract Base}->__construct()',
+        '\Demo\{abstract Base}->{protected final make(\DateTimeImmutable):\DateTimeImmutable}',
+    ], $signatures);
+}
+
+function testSignatureSearchFormatsClassConstantUnaryValues(): void {
+    $root = createRepository('const-values', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const NEGATIVE = -1;
+    public const POSITIVE = +2;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Class constant unary values should retain their current formatting.', [
+        '\Demo\Values->__construct()',
+        '\Demo\Values::NEGATIVE = -1',
+        '\Demo\Values::POSITIVE = +2',
+    ], $signatures);
+}
+
+
+function testSignatureSearchPrefersUseAliasesOverNamespaceFallback(): void {
+    $root = createRepository('alias-precedence', [
+        'src/Alias.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\LocalType;
+class LocalType {}
+function build(LocalType $item): LocalType {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Alias.php']);
+    assertSameList('Imported aliases should keep taking precedence over same-named local types.', [
+        '\Demo\LocalType->__construct()',
+        '\Demo\build(\Vendor\Package\LocalType):\Vendor\Package\LocalType',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversGroupedPropertyAndConstantDeclarations(): void {
+    $root = createRepository('grouped-declarations', [
+        'src/Fields.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Fields {
+    public $one, $two;
+    public const FIRST = 'a', SECOND = 'b';
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Fields.php']);
+    assertSameList('Grouped property and constant declarations should emit separate signatures in their current shape.', [
+        '\Demo\Fields$one',
+        '\Demo\Fields$two',
+        '\Demo\Fields->__construct()',
+        '\Demo\Fields::FIRST = \'a\'',
+        '\Demo\Fields::SECOND = \'b\'',
+    ], $signatures);
+}
+
+function testSignatureSearchCoversGlobalNamespaceShapes(): void {
+    $root = createRepository('global-namespace', [
+        'src/GlobalCode.php' => <<<'PHP'
+<?php
+class GlobalThing {}
+function make(int $value): int {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/GlobalCode.php']);
+    assertSameList('Global namespace symbols should retain their current root-level signature shape.', [
+        'GlobalThing->__construct()',
+        'make(int):int',
+    ], $signatures);
+}
+
 function testDiffReportFormatting(): void {
     $report = new DiffReport('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
@@ -404,6 +517,12 @@ testSignatureSearchIgnoresPrivateMembers();
 testSignatureSearchFormatsDefaultValues();
 testSignatureSearchCoversVariadicStaticMethods();
 testSignatureSearchCoversTraitsAndInterfaces();
+testSignatureSearchCoversNestedNamespaceFallbackTypes();
+testSignatureSearchCoversFullyQualifiedAndAbstractShapes();
+testSignatureSearchFormatsClassConstantUnaryValues();
+testSignatureSearchPrefersUseAliasesOverNamespaceFallback();
+testSignatureSearchCoversGroupedPropertyAndConstantDeclarations();
+testSignatureSearchCoversGlobalNamespaceShapes();
 testDiffReportFormatting();
 testCliParsingAndDefaults();
 
