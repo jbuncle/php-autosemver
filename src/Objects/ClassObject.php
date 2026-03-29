@@ -29,7 +29,7 @@ class ClassObject
         $signatures = parent::getSignatureModels();
         if (!$this->hasConstructor()) {
             // Add default constructor
-            $signatures[] = new PrefixedSignature($this->getPath(), new CallableSignature('->', '__construct', [], null));
+            $signatures[] = new PrefixedSignature($this->getPath(), new CallableSignature('->', '__construct', [], null), $this->getIdentityPrefix());
         }
         return $signatures;
     }

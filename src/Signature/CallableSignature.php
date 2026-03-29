@@ -19,26 +19,6 @@ class CallableSignature implements LegacySignature {
     private $parameters;
 
     /**
-     * @param ParameterSignature[] $parameters
-     * @param string[] $modifiers
-     */
-    public function __construct(
-            string $dispatch,
-            string $name,
-            array $parameters,
-            ?TypeReference $returnType,
-            array $modifiers = [],
-            bool $wrap = false
-    ) {
-        $this->dispatch = $dispatch;
-        $this->name = $name;
-        $this->parameters = $parameters;
-        $this->returnType = $returnType;
-        $this->modifiers = $modifiers;
-        $this->wrap = $wrap;
-    }
-
-    /**
      * @var string
      */
     private $dispatch;
@@ -57,6 +37,26 @@ class CallableSignature implements LegacySignature {
      * @var bool
      */
     private $wrap;
+
+    /**
+     * @param ParameterSignature[] $parameters
+     * @param string[] $modifiers
+     */
+    public function __construct(
+            string $dispatch,
+            string $name,
+            array $parameters,
+            ?TypeReference $returnType,
+            array $modifiers = [],
+            bool $wrap = false
+    ) {
+        $this->dispatch = $dispatch;
+        $this->name = $name;
+        $this->parameters = $parameters;
+        $this->returnType = $returnType;
+        $this->modifiers = $modifiers;
+        $this->wrap = $wrap;
+    }
 
     public function toLegacyString(): string {
         $signature = '';
@@ -81,17 +81,20 @@ class CallableSignature implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return implode('|', [
-            'callable',
-            'dispatch:' . $this->dispatch,
-            'name:' . $this->name,
-            'wrap:' . ($this->wrap ? '1' : '0'),
-            'modifiers:' . implode(',', $this->modifiers),
-            'params:[' . implode(',', array_map(function (ParameterSignature $parameter): string {
-                return $parameter->toIdentityKey();
-            }, $this->parameters)) . ']',
-            $this->returnType ? $this->returnType->toIdentityKey() : 'return:none',
-        ]);
+        return $this->getIdentity()->toIdentityKey();
+    }
+
+    public function getIdentity(): CallableIdentity {
+        return new CallableIdentity(
+            $this->dispatch,
+            $this->name,
+            array_map(function (ParameterSignature $parameter): ParameterIdentity {
+                return $parameter->getIdentity();
+            }, $this->parameters),
+            $this->returnType,
+            $this->modifiers,
+            $this->wrap
+        );
     }
 
     public function __toString(): string {

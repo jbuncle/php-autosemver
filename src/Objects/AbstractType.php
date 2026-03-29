@@ -6,6 +6,8 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\ContainerIdentity;
+use AutomaticSemver\Signature\IdentityKey;
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\RawSignature;
@@ -51,7 +53,7 @@ abstract class AbstractType
 
         foreach ($this->getObjects() as $object) {
             foreach ($this->getModelsForObject($object) as $signature) {
-                $signatures[] = new PrefixedSignature($this->getPath(), $signature);
+                $signatures[] = new PrefixedSignature($this->getPath(), $signature, $this->getIdentityPrefix());
             }
         }
 
@@ -70,9 +72,38 @@ abstract class AbstractType
     }
 
     protected function getPath() {
-        $sig = '';
-        $sig .= (string) $this->obj->name;
-        return $sig;
+        return $this->getTypeName();
+    }
+
+    protected function getIdentityPrefix(): IdentityKey {
+        return new ContainerIdentity(
+            $this->getTypeKind(),
+            $this->getTypeName(),
+            $this->isAbstractType(),
+            $this->isFinalType()
+        );
+    }
+
+    protected function getTypeName(): string {
+        return (string) $this->obj->name;
+    }
+
+    private function getTypeKind(): string {
+        if ($this->obj instanceof \PhpParser\Node\Stmt\Interface_) {
+            return 'interface';
+        }
+        if ($this->obj instanceof \PhpParser\Node\Stmt\Trait_) {
+            return 'trait';
+        }
+        return 'class';
+    }
+
+    private function isAbstractType(): bool {
+        return $this->obj instanceof \PhpParser\Node\Stmt\Class_ && $this->obj->isAbstract();
+    }
+
+    private function isFinalType(): bool {
+        return $this->obj instanceof \PhpParser\Node\Stmt\Class_ && $this->obj->isFinal();
     }
 
     /**

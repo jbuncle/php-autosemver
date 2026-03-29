@@ -45,12 +45,11 @@ class ParameterSignature implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return implode('|', [
-            'param',
-            $this->variadic ? 'variadic:1' : 'variadic:0',
-            $this->type->toIdentityKey(),
-            $this->defaultValue ? $this->defaultValue->toIdentityKey() : 'default:none',
-        ]);
+        return $this->getIdentity()->toIdentityKey();
+    }
+
+    public function getIdentity(): ParameterIdentity {
+        return new ParameterIdentity($this->type, $this->variadic, $this->defaultValue);
     }
 
     public function __toString(): string {
