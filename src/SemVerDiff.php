@@ -32,17 +32,25 @@ class SemVerDiff {
         }
 
         $fileContents = file_get_contents($file);
+        if ($fileContents === false) {
+            return [];
+        }
+
         $lines = explode("\n", $fileContents);
 
-
         $clean = array_map(function(string $line): string {
-            $line = substr($line, strpos($line, '#'));
-            return trim($line);
+            $line = trim($line);
+            if ($line === '' || strpos($line, '#') === 0) {
+                return '';
+            }
+
+            $line = preg_replace('/\s+#.*$/', '', $line);
+            return trim((string) $line);
         }, $lines);
 
-        return array_filter($clean, function(string $line): bool {
+        return array_values(array_filter($clean, function(string $line): bool {
             return !empty($line);
-        });
+        }));
     }
 
     private function isGitIgnored(string $filePath, array $ignores): bool {
@@ -60,7 +68,6 @@ class SemVerDiff {
             }
         }
 
-        // Failed to match
         return false;
     }
 
@@ -77,7 +84,7 @@ class SemVerDiff {
             if (!empty($this->includePaths) && !self::startsWithAny($relPath, $this->includePaths)) {
                 return false;
             }
-            if (!empty($this->includePaths) && self::startsWithAny($relPath, $this->excludePaths)) {
+            if (!empty($this->excludePaths) && self::startsWithAny($relPath, $this->excludePaths)) {
                 return false;
             }
             return !$gitFilter($relPath);
