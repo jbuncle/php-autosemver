@@ -2,13 +2,23 @@
 
 declare(strict_types=1);
 
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+use AutomaticSemver\CLI;
+use AutomaticSemver\DiffReport;
 use AutomaticSemver\SemVerDiff;
 
-function assertSameValue(string $message, string $expected, string $actual): void {
+function assertSameValue(string $message, $expected, $actual): void {
     if ($expected !== $actual) {
-        throw new RuntimeException($message . " Expected '$expected', got '$actual'.");
+        throw new RuntimeException($message . " Expected '" . var_export($expected, true) . "', got '" . var_export($actual, true) . "'.");
+    }
+}
+
+function assertContainsText(string $message, string $needle, string $haystack): void {
+    if (strpos($haystack, $needle) === false) {
+        throw new RuntimeException($message . " Missing '" . $needle . "'.");
     }
 }
 
@@ -56,6 +66,22 @@ function createRepository(string $name, array $files): string {
     return $root;
 }
 
+function commitAll(string $root, string $message): void {
+    runCommand('git add .', $root);
+    runCommand('git commit -q -m ' . escapeshellarg($message), $root);
+}
+
+function runWithArgv(array $newArgv, callable $callback): void {
+    global $argv;
+    $originalArgv = $argv;
+    $argv = $newArgv;
+    try {
+        $callback();
+    } finally {
+        $argv = $originalArgv;
+    }
+}
+
 function testExcludePathsAreHonoured(): void {
     $root = createRepository('exclude-paths', [
         '.gitignore' => "",
@@ -80,7 +106,90 @@ function testGitIgnoreInlineCommentsAreIgnored(): void {
     assertSameValue('Ignored files should not affect the increment.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+function testIncludePathsRestrictTheSurface(): void {
+    $root = createRepository('include-paths', [
+        'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function stableMethod() {} }\n",
+        'lib/Helper.php' => "<?php\nnamespace Demo;\nclass Helper { public function stableMethod() {} }\n",
+    ]);
+
+    writeFile($root . '/lib/NewApi.php', "<?php\nnamespace Demo;\nclass NewApi { public function newMethod() {} }\n");
+
+    $diff = new SemVerDiff($root, ['src'], []);
+    assertSameValue('Include paths should restrict which files are analysed.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testWorkingCopyNewSignatureIsMinor(): void {
+    $root = createRepository('wc-minor', [
+        'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function stableMethod() {} }\n",
+    ]);
+
+    writeFile($root . '/src/Bar.php', "<?php\nnamespace Demo;\nclass Bar { public function newMethod() {} }\n");
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('A new public signature in the working copy should be MINOR.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testGitRevisionRemovalIsMajor(): void {
+    $root = createRepository('git-major', [
+        'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function removedMethod() {} }\n",
+    ]);
+
+    writeFile($root . '/src/Foo.php', "<?php\nnamespace Demo;\nclass Foo {}\n");
+    commitAll($root, 'Remove method');
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Removing a signature between revisions should be MAJOR.', 'MAJOR', $diff->diff('HEAD~1', 'HEAD')->getIncrement());
+}
+
+function testDiffReportFormatting(): void {
+    $report = new DiffReport('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
+
+    assertSameValue('Removed signatures should produce a MAJOR increment.', 'MAJOR', $report->getIncrement());
+    assertContainsText('Verbosity 1 output should include the comparison header.', 'Comparing from-tag => to-tag', $report->toString(1));
+    assertContainsText('Verbosity 2 output should include unchanged signatures.', "\tsameSignature", $report->toString(2));
+}
+
+function testCliParsingAndDefaults(): void {
+    runWithArgv([
+        'php-autosemver',
+        '--verbosity=2',
+        '--project=/tmp/example-project',
+        'v1.0.0',
+    ], function (): void {
+        $cli = new CLI();
+        $cli->load();
+
+        assertSameValue('CLI should parse the from revision.', 'v1.0.0', $cli->getFrom());
+        assertSameValue('CLI should default the to revision to HEAD.', 'HEAD', $cli->getTo());
+        assertSameValue('CLI should parse verbosity.', 2, $cli->getVerbosity());
+        assertSameValue('CLI should parse project path.', '/tmp/example-project', $cli->getProjectPath());
+    });
+
+    runWithArgv([
+        'php-autosemver',
+        '--verbosity',
+        '1',
+        '--project',
+        '/tmp/second-project',
+        'v2.0.0',
+        'HEAD~1',
+    ], function (): void {
+        $cli = new CLI();
+        $cli->load();
+
+        assertSameValue('CLI should parse the from revision when options use separate values.', 'v2.0.0', $cli->getFrom());
+        assertSameValue('CLI should parse the to revision when provided.', 'HEAD~1', $cli->getTo());
+        assertSameValue('CLI should parse verbosity when the value is separate.', 1, $cli->getVerbosity());
+        assertSameValue('CLI should parse project path when the value is separate.', '/tmp/second-project', $cli->getProjectPath());
+    });
+}
+
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
+testIncludePathsRestrictTheSurface();
+testWorkingCopyNewSignatureIsMinor();
+testGitRevisionRemovalIsMajor();
+testDiffReportFormatting();
+testCliParsingAndDefaults();
 
 echo "All tests passed\n";
