@@ -377,6 +377,18 @@ function testDiffReportNamedConstructorsPreserveBehaviour(): void {
     assertContainsText('Legacy-display report construction should preserve rendering.', "	removedSignature", $legacyReport->toString(1));
 }
 
+function testDiffReportRendererUsesReportAccessors(): void {
+    $report = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
+    $renderer = new DiffReportRenderer();
+
+    $rendered = $renderer->render($report, 2);
+
+    assertContainsText('Renderer output should include unchanged signatures via the report API.', "	sameSignature", $rendered);
+    assertContainsText('Renderer output should include new signatures via the report API.', "	newSignature", $rendered);
+    assertContainsText('Renderer output should include removed signatures via the report API.', "	removedSignature", $rendered);
+    assertContainsText('Renderer output should append the report increment.', 'MAJOR', $rendered);
+}
+
 function testSignatureIdentityKeepsCurrentDiffBehaviour(): void {
     $root = createRepository('identity-diff', [
         'src/Foo.php' => <<<'PHP'
@@ -1008,6 +1020,7 @@ testIncrementDeciderUsesEntryState();
 testDiffReportRendererFormatsBucketEntries();
 testRevisionRangeCarriesReportLabels();
 testDiffReportNamedConstructorsPreserveBehaviour();
+testDiffReportRendererUsesReportAccessors();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();

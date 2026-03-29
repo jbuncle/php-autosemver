@@ -92,10 +92,6 @@ class DiffReport {
         return $this->range->getTo();
     }
 
-    public function getEntries(): DiffEntries {
-        return $this->entries;
-    }
-
     /**
      * @return string[]
      */

@@ -24,22 +24,22 @@ class DiffReportRenderer {
         }
         if ($level >= 2) {
             $str .= "Unchanged:\n";
-            foreach ($report->getEntries()->getUnchangedDisplays() as $unchangedSignature) {
+            foreach ($report->getUnchangedSignatures() as $unchangedSignature) {
                 $str .= "\t$unchangedSignature\n";
             }
         }
         if ($level >= 1) {
             $str .= "New:\n";
-            foreach ($report->getEntries()->getNewDisplays() as $newSignature) {
+            foreach ($report->getNewSignatures() as $newSignature) {
                 $str .= "\t$newSignature\n";
             }
 
             $str .= "Removed:\n";
-            foreach ($report->getEntries()->getRemovedDisplays() as $removedSignature) {
+            foreach ($report->getRemovedSignatures() as $removedSignature) {
                 $str .= "\t$removedSignature\n";
             }
         }
 
-        return $str . $this->incrementDecider->decide($report->getEntries());
+        return $str . $report->getIncrement();
     }
 }
