@@ -315,6 +315,37 @@ function testSignatureDiffSnapshotProducesEntries(): void {
     assertSameList('Signature snapshots should preserve removed buckets.', ['removedSignature'], $entries->getRemovedDisplays());
 }
 
+function testSignatureDiffSnapshotCanBeBuiltFromSignatures(): void {
+    $previous = [
+        new class implements LegacySignature {
+            public function toLegacyString(): string { return '\Demo\One->demo()'; }
+            public function toIdentityKey(): string { return 'callable|name:demo'; }
+            public function equals(IdentityKey $other): bool { return $other->toIdentityKey() === $this->toIdentityKey(); }
+            public function __toString(): string { return $this->toLegacyString(); }
+        },
+    ];
+    $current = [
+        new class implements LegacySignature {
+            public function toLegacyString(): string { return '\Demo\One->demo()'; }
+            public function toIdentityKey(): string { return 'callable|name:demo'; }
+            public function equals(IdentityKey $other): bool { return $other->toIdentityKey() === $this->toIdentityKey(); }
+            public function __toString(): string { return $this->toLegacyString(); }
+        },
+        new class implements LegacySignature {
+            public function toLegacyString(): string { return '\Demo\Two->demo()'; }
+            public function toIdentityKey(): string { return 'callable|name:extra'; }
+            public function equals(IdentityKey $other): bool { return $other->toIdentityKey() === $this->toIdentityKey(); }
+            public function __toString(): string { return $this->toLegacyString(); }
+        },
+    ];
+
+    $entries = SignatureDiffSnapshot::fromSignatures($previous, $current)->toEntries();
+
+    assertSameList('Signature snapshot factories should preserve unchanged semantic matches.', ['\Demo\One->demo()'], $entries->getUnchangedDisplays());
+    assertSameList('Signature snapshot factories should preserve new signatures.', ['\Demo\Two->demo()'], $entries->getNewDisplays());
+    assertSameList('Signature snapshot factories should not invent removed signatures.', [], $entries->getRemovedDisplays());
+}
+
 function testSignatureBucketsCanBeBuiltFromSignatures(): void {
     $signatures = [
         new class implements LegacySignature {
@@ -1058,6 +1089,7 @@ testIdentityEqualityUsesSemanticObjectComparison();
 testSemanticDiffUsesIdentityEqualityNotOnlySerializedKeys();
 testSignatureIndexPreservesAllDisplaysForOneIdentity();
 testSignatureDiffSnapshotProducesEntries();
+testSignatureDiffSnapshotCanBeBuiltFromSignatures();
 testSignatureBucketsCanBeBuiltFromSignatures();
 testDiffEntriesFlattenDisplays();
 testDiffEntriesCanBeBuiltFromLegacyDisplays();
