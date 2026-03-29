@@ -80,6 +80,10 @@ class CallableSignature implements LegacySignature {
         return $this->dispatch . $signature;
     }
 
+    public function toIdentityKey(): string {
+        return $this->toLegacyString();
+    }
+
     public function __toString(): string {
         return $this->toLegacyString();
     }

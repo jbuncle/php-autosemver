@@ -44,6 +44,10 @@ class ParameterSignature implements LegacySignature {
         return $parameter;
     }
 
+    public function toIdentityKey(): string {
+        return $this->toLegacyString();
+    }
+
     public function __toString(): string {
         return $this->toLegacyString();
     }

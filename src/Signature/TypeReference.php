@@ -21,6 +21,10 @@ class TypeReference implements LegacySignature {
         return $this->type;
     }
 
+    public function toIdentityKey(): string {
+        return $this->toLegacyString();
+    }
+
     public function __toString(): string {
         return $this->toLegacyString();
     }

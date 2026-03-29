@@ -95,30 +95,43 @@ class SemVerDiff {
         $startFiles = $this->getFilesForLabel($startRevision, $filter);
         $endFiles = $this->getFilesForLabel($endRevision, $filter);
 
-        $prevSignatures = $this->normalizeSignatures($signatureSearch->getSignatureModels($startFiles));
-        $currentSignatures = $this->normalizeSignatures($signatureSearch->getSignatureModels($endFiles));
+        $previous = $this->indexSignatures($signatureSearch->getSignatureModels($startFiles));
+        $current = $this->indexSignatures($signatureSearch->getSignatureModels($endFiles));
 
-        $unchangedSignatures = array_intersect($currentSignatures, $prevSignatures);
-        $newSignatures = array_diff($currentSignatures, $prevSignatures);
-        $removedSignatures = array_diff($prevSignatures, $currentSignatures);
+        $unchangedKeys = array_intersect(array_keys($current), array_keys($previous));
+        $newKeys = array_diff(array_keys($current), array_keys($previous));
+        $removedKeys = array_diff(array_keys($previous), array_keys($current));
 
         return new DiffReport(
                 $startRevision,
                 $endRevision,
-                $unchangedSignatures,
-                $newSignatures,
-                $removedSignatures
+                $this->mapSignatureKeysToStrings($unchangedKeys, $current),
+                $this->mapSignatureKeysToStrings($newKeys, $current),
+                $this->mapSignatureKeysToStrings($removedKeys, $previous)
         );
     }
 
     /**
      * @param LegacySignature[] $signatures
+     * @return array<string, string>
+     */
+    private function indexSignatures(array $signatures): array {
+        $index = [];
+        foreach ($signatures as $signature) {
+            $index[$signature->toIdentityKey()] = $signature->toLegacyString();
+        }
+        return $index;
+    }
+
+    /**
+     * @param string[] $keys
+     * @param array<string, string> $index
      * @return string[]
      */
-    private function normalizeSignatures(array $signatures): array {
-        return array_map(function (LegacySignature $signature): string {
-            return $signature->toLegacyString();
-        }, $signatures);
+    private function mapSignatureKeysToStrings(array $keys, array $index): array {
+        return array_values(array_map(function (string $key) use ($index): string {
+            return $index[$key];
+        }, $keys));
     }
 
     private static function startsWithAny(string $str, array $prefixes) {

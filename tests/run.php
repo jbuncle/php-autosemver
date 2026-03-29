@@ -132,6 +132,7 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
     ], new TypeReference('?\Vendor\Thing'), ['protected', 'final'], true);
     assertSameValue('Callable signature models should render the current legacy format.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', $callable->toLegacyString());
     assertSameValue('Callable signature models should support string casting.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', (string) $callable);
+    assertSameValue('Callable signature identity should default to the legacy string during the transition.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', $callable->toIdentityKey());
 
     $property = new PropertySignature('counter', 'protected static ');
     assertSameValue('Property signature models should render the current legacy format.', 'protected static $counter', $property->toLegacyString());
@@ -153,6 +154,26 @@ function testParameterSignatureModelsRenderCurrentStrings(): void {
 function testTypeReferenceModelsRenderCurrentStrings(): void {
     $type = new TypeReference('?\Vendor\Thing');
     assertSameValue('Type reference models should render the current legacy format.', '?\Vendor\Thing', (string) $type);
+}
+
+function testSignatureIdentityKeepsCurrentDiffBehaviour(): void {
+    $root = createRepository('identity-diff', [
+        'src/Foo.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public function demo(string $name) {} }
+PHP,
+    ]);
+
+    writeFile($root . '/src/Foo.php', <<<'PHP'
+<?php
+namespace Demo;
+class Foo { public function demo(string $name, int $count = 0) {} }
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Identity-key diffing should preserve the current increment semantics.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testExcludePathsAreHonoured(): void {
@@ -754,6 +775,7 @@ function testCliParsingAndDefaults(): void {
 testLegacySignatureModelsRenderCurrentStrings();
 testParameterSignatureModelsRenderCurrentStrings();
 testTypeReferenceModelsRenderCurrentStrings();
+testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();

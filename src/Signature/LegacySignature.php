@@ -10,5 +10,7 @@ interface LegacySignature {
 
     public function toLegacyString(): string;
 
+    public function toIdentityKey(): string;
+
     public function __toString(): string;
 }
