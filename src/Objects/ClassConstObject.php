@@ -6,6 +6,9 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\ConstantSignature;
+use AutomaticSemver\Signature\LegacySignature;
+
 /**
  * ClassConstObject
  *
@@ -24,10 +27,19 @@ class ClassConstObject implements Signatures {
     }
 
     public function getSignatures(): array {
+        return array_map(function (LegacySignature $signature): string {
+            return $signature->toLegacyString();
+        }, $this->getSignatureModels());
+    }
+
+    /**
+     * @return LegacySignature[]
+     */
+    public function getSignatureModels(): array {
         $sigs = [];
 
         foreach ($this->constObj->consts as $const) {
-            $sigs [] = "::$const->name = {$this->getValueString($const->value)}";
+            $sigs[] = new ConstantSignature((string) $const->name, $this->getValueString($const->value));
         }
         return $sigs;
     }
@@ -37,10 +49,10 @@ class ClassConstObject implements Signatures {
             return "'" . $value->value . "'";
         }
         if ($value instanceof \PhpParser\Node\Expr\UnaryMinus) {
-            return "-" . $value->expr->value;
+            return '-' . $value->expr->value;
         }
         if ($value instanceof \PhpParser\Node\Expr\UnaryPlus) {
-            return "+" . $value->expr->value;
+            return '+' . $value->expr->value;
         }
         return (string) $value->value;
     }

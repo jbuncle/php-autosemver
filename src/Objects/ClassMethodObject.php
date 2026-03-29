@@ -6,6 +6,8 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\CallableSignature;
+use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\TypeLookup;
 
 /**
@@ -28,42 +30,28 @@ class ClassMethodObject
         return parent::getSignatures();
     }
 
-    protected function createSignatureForParams(array $methodParams, bool $doDefault, $returnType ): string {
-
-        $sig = '';
+    protected function createSignatureModelForParams(array $methodParams, bool $doDefault, $returnType): LegacySignature {
+        $modifiers = [];
         $wrap = false;
 
         if ($this->functionLikeObj->isProtected()) {
-            $sig .= 'protected ';
+            $modifiers[] = 'protected';
             $wrap = true;
         }
 
         if ($this->functionLikeObj->isFinal()) {
-            $sig .= 'final ';
+            $modifiers[] = 'final';
             $wrap = true;
         }
-        $sig .= $this->getName();
-        $sig .= '(';
-        $sig .= $this->createParameterSignature($methodParams, $doDefault);
-        $sig = rtrim($sig, ' ');
-        $sig = rtrim($sig, ',');
-        $sig .= ')';
 
-        if ($returnType) {
-            $sig .= ':' . $this->getFullType($returnType);
-        }
-
-        if ($wrap) {
-            $sig = '{' . $sig . '}';
-        }
-
-        if ($this->functionLikeObj->isStatic()) {
-            $sig = '::' . $sig;
-        } else {
-            $sig = '->' . $sig;
-        }
-
-        return $sig;
+        return new CallableSignature(
+            $this->functionLikeObj->isStatic() ? '::' : '->',
+            $this->getName(),
+            $this->createParameterTypes($methodParams, $doDefault),
+            $returnType ? $this->getFullType($returnType) : null,
+            $modifiers,
+            $wrap
+        );
     }
 
 }

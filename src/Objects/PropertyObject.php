@@ -6,6 +6,9 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\Signature\LegacySignature;
+use AutomaticSemver\Signature\PropertySignature;
+
 /**
  * PropertyObject
  *
@@ -25,29 +28,31 @@ class PropertyObject
     }
 
     public function getSignatures(): array {
+        return array_map(function (LegacySignature $signature): string {
+            return $signature->toLegacyString();
+        }, $this->getSignatureModels());
+    }
+
+    /**
+     * @return LegacySignature[]
+     */
+    public function getSignatureModels(): array {
         if ($this->propertyObj->isPrivate()) {
             // Ignore private properties
             return [];
         }
         $prefix = '';
 
-        $wrap = false;
         if ($this->propertyObj->isProtected()) {
             $prefix = 'protected ';
         }
         if ($this->propertyObj->isStatic()) {
             $prefix .= 'static ';
         }
-        $prefix .= '$';
 
         $sigs = [];
         foreach ($this->propertyObj->props as $prop) {
-            $sig = $prefix . ((string) $prop->name);
-            if ($wrap) {
-                $sigs[] = '{' . $sig . '}';
-            } else {
-                $sigs[] = $sig;
-            }
+            $sigs[] = new PropertySignature((string) $prop->name, $prefix);
         }
 
         return $sigs;

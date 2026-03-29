@@ -10,6 +10,9 @@ use AutomaticSemver\CLI;
 use AutomaticSemver\DiffReport;
 use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\SemVerDiff;
+use AutomaticSemver\Signature\CallableSignature;
+use AutomaticSemver\Signature\ConstantSignature;
+use AutomaticSemver\Signature\PropertySignature;
 use AutomaticSemver\SignatureSearch;
 
 function assertSameValue(string $message, $expected, $actual): void {
@@ -116,6 +119,19 @@ function getSignaturesForFiles(string $root, array $files): array {
     }, $files);
 
     return $search->getSignatures($fileObjects);
+}
+
+
+function testLegacySignatureModelsRenderCurrentStrings(): void {
+    $callable = new CallableSignature('->', 'demo', ['string', 'int = 0'], '?\Vendor\Thing', ['protected', 'final'], true);
+    assertSameValue('Callable signature models should render the current legacy format.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', $callable->toLegacyString());
+    assertSameValue('Callable signature models should support string casting.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', (string) $callable);
+
+    $property = new PropertySignature('counter', 'protected static ');
+    assertSameValue('Property signature models should render the current legacy format.', 'protected static $counter', $property->toLegacyString());
+
+    $constant = new ConstantSignature('STATUS', "'ok'");
+    assertSameValue('Constant signature models should render the current legacy format.', "::STATUS = 'ok'", (string) $constant);
 }
 
 function testExcludePathsAreHonoured(): void {
@@ -714,6 +730,7 @@ function testCliParsingAndDefaults(): void {
     });
 }
 
+testLegacySignatureModelsRenderCurrentStrings();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();
