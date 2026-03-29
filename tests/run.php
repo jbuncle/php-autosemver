@@ -141,6 +141,28 @@ function testGitRevisionRemovalIsMajor(): void {
     assertSameValue('Removing a signature between revisions should be MAJOR.', 'MAJOR', $diff->diff('HEAD~1', 'HEAD')->getIncrement());
 }
 
+function testOptionalParameterAdditionIsMinor(): void {
+    $root = createRepository('optional-param', [
+        'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function demo(string \$name) {} }\n",
+    ]);
+
+    writeFile($root . '/src/Foo.php', "<?php\nnamespace Demo;\nclass Foo { public function demo(string \$name, int \$count = 0) {} }\n");
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Adding an optional parameter should remain backward compatible and be MINOR.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testExplicitDefaultConstructorIsPatch(): void {
+    $root = createRepository('constructor', [
+        'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo {}\n",
+    ]);
+
+    writeFile($root . '/src/Foo.php', "<?php\nnamespace Demo;\nclass Foo { public function __construct() {} }\n");
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Adding an explicit no-arg constructor should match the implicit constructor signature.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testDiffReportFormatting(): void {
     $report = new DiffReport('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
@@ -182,6 +204,18 @@ function testCliParsingAndDefaults(): void {
         assertSameValue('CLI should parse verbosity when the value is separate.', 1, $cli->getVerbosity());
         assertSameValue('CLI should parse project path when the value is separate.', '/tmp/second-project', $cli->getProjectPath());
     });
+
+    runWithArgv([
+        'php-autosemver',
+        '--from=v3.0.0',
+        '--to=HEAD~2',
+    ], function (): void {
+        $cli = new CLI();
+        $cli->load();
+
+        assertSameValue('CLI should accept --from as a fallback when no positional revision is supplied.', 'v3.0.0', $cli->getFrom());
+        assertSameValue('CLI should accept --to as a fallback when no positional revision is supplied.', 'HEAD~2', $cli->getTo());
+    });
 }
 
 testExcludePathsAreHonoured();
@@ -189,6 +223,8 @@ testGitIgnoreInlineCommentsAreIgnored();
 testIncludePathsRestrictTheSurface();
 testWorkingCopyNewSignatureIsMinor();
 testGitRevisionRemovalIsMajor();
+testOptionalParameterAdditionIsMinor();
+testExplicitDefaultConstructorIsPatch();
 testDiffReportFormatting();
 testCliParsingAndDefaults();
 

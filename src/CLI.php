@@ -98,15 +98,24 @@ class CLI {
     }
 
     public function getFrom(): string {
-        return $this->getArgs()[0];
+        $args = $this->getArgs();
+        if (array_key_exists(0, $args)) {
+            return $args[0];
+        }
+
+        return $this->getOption('from', 'HEAD');
     }
 
     public function getTo(): string {
-        if (array_key_exists(1, $this->getArgs())) {
-            return $this->getArgs()[1];
-        } else {
+        $args = $this->getArgs();
+        if (array_key_exists(1, $args)) {
+            return $args[1];
+        }
+        if (array_key_exists(0, $args)) {
             return 'HEAD';
         }
+
+        return $this->getOption('to', 'HEAD');
     }
 
 }
