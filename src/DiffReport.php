@@ -27,32 +27,32 @@ class DiffReport {
 
     /**
      *
-     * @var array<string>
+     * @var DiffEntries
      */
-    private $unchangedSignatures;
+    private $entries;
 
     /**
-     *
-     * @var array<string>
+     * @param string[]|DiffEntries $unchangedSignatures
+     * @param string[] $newSignatures
+     * @param string[] $removedSignatures
      */
-    private $newSignatures;
-
-    /**
-     *
-     * @var array<string>
-     */
-    private $removedSignatures;
-
-    public function __construct($from, $to, $unchangedSignatures, $newSignatures, $removedSignatures) {
+    public function __construct($from, $to, $unchangedSignatures, $newSignatures = [], $removedSignatures = []) {
         $this->from = $from;
         $this->to = $to;
-        $this->unchangedSignatures = $unchangedSignatures;
-        $this->newSignatures = $newSignatures;
-        $this->removedSignatures = $removedSignatures;
+        if ($unchangedSignatures instanceof DiffEntries) {
+            $this->entries = $unchangedSignatures;
+            return;
+        }
+
+        $this->entries = new DiffEntries(
+            [new SignatureBucket(new ReportIdentity('unchanged'), $unchangedSignatures)],
+            [new SignatureBucket(new ReportIdentity('new'), $newSignatures)],
+            [new SignatureBucket(new ReportIdentity('removed'), $removedSignatures)]
+        );
     }
 
     /**
-     * 
+     *
      * @param 0|1|2 $level
      * @return string
      */
@@ -63,19 +63,19 @@ class DiffReport {
         }
         if ($level >= 2) {
             $str .= "Unchanged:\n";
-            foreach ($this->unchangedSignatures as $unchangedSignature) {
+            foreach ($this->getUnchangedSignatures() as $unchangedSignature) {
                 $str .= "\t$unchangedSignature\n";
             }
         }
         if ($level >= 1) {
 
             $str .= "New:\n";
-            foreach ($this->newSignatures as $newSignature) {
+            foreach ($this->getNewSignatures() as $newSignature) {
                 $str .= "\t$newSignature\n";
             }
 
             $str .= "Removed:\n";
-            foreach ($this->removedSignatures as $removedSignature) {
+            foreach ($this->getRemovedSignatures() as $removedSignature) {
                 $str .= "\t$removedSignature\n";
             }
         }
@@ -85,13 +85,34 @@ class DiffReport {
     }
 
     /**
+     * @return string[]
+     */
+    public function getUnchangedSignatures(): array {
+        return $this->entries->flattenDisplays($this->entries->getUnchanged());
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getNewSignatures(): array {
+        return $this->entries->flattenDisplays($this->entries->getNew());
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getRemovedSignatures(): array {
+        return $this->entries->flattenDisplays($this->entries->getRemoved());
+    }
+
+    /**
      *
      * @return "MAJOR"|"MINOR"|"PATCH"
      */
     public function getIncrement(): string {
-        if (!empty($this->removedSignatures)) {
+        if (!empty($this->getRemovedSignatures())) {
             return "MAJOR";
-        } else if (!empty($this->newSignatures)) {
+        } else if (!empty($this->getNewSignatures())) {
             return "MINOR";
         } else {
             return "PATCH";

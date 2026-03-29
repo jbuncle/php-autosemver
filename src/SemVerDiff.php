@@ -101,59 +101,51 @@ class SemVerDiff {
 
         $unchanged = [];
         $new = [];
-        foreach ($current as $entry) {
-            $previousEntry = $this->findMatchingEntry($entry['identity'], $previous);
-            if ($previousEntry !== null) {
-                $unchanged = array_merge($unchanged, $entry['display']);
+        foreach ($current as $bucket) {
+            if ($this->findMatchingBucket($bucket->getIdentity(), $previous) !== null) {
+                $unchanged[] = $bucket;
             } else {
-                $new = array_merge($new, $entry['display']);
+                $new[] = $bucket;
             }
         }
 
         $removed = [];
-        foreach ($previous as $entry) {
-            if ($this->findMatchingEntry($entry['identity'], $current) === null) {
-                $removed = array_merge($removed, $entry['display']);
+        foreach ($previous as $bucket) {
+            if ($this->findMatchingBucket($bucket->getIdentity(), $current) === null) {
+                $removed[] = $bucket;
             }
         }
 
         return new DiffReport(
             $startRevision,
             $endRevision,
-            $unchanged,
-            $new,
-            $removed
+            new DiffEntries($unchanged, $new, $removed)
         );
     }
 
     /**
      * @param LegacySignature[] $signatures
-     * @return array<int, array{identity: IdentityKey, display: string[]}>
+     * @return SignatureBucket[]
      */
     private function indexSignatures(array $signatures): array {
         $index = [];
         foreach ($signatures as $signature) {
-            $matchedIndex = $this->findMatchingEntryIndex($signature, $index);
+            $matchedIndex = $this->findMatchingBucketIndex($signature, $index);
             if ($matchedIndex === null) {
-                $index[] = [
-                    'identity' => $signature,
-                    'display' => [$signature->toLegacyString()],
-                ];
+                $index[] = new SignatureBucket($signature, [$signature->toLegacyString()]);
                 continue;
             }
 
-            if (!in_array($signature->toLegacyString(), $index[$matchedIndex]['display'], true)) {
-                $index[$matchedIndex]['display'][] = $signature->toLegacyString();
-            }
+            $index[$matchedIndex]->addDisplay($signature->toLegacyString());
         }
         return $index;
     }
 
     /**
-     * @param array<int, array{identity: IdentityKey, display: string[]}> $entries
+     * @param SignatureBucket[] $entries
      */
-    private function findMatchingEntry(IdentityKey $identity, array $entries): ?array {
-        $matchedIndex = $this->findMatchingEntryIndex($identity, $entries);
+    private function findMatchingBucket(IdentityKey $identity, array $entries): ?SignatureBucket {
+        $matchedIndex = $this->findMatchingBucketIndex($identity, $entries);
         if ($matchedIndex === null) {
             return null;
         }
@@ -162,11 +154,11 @@ class SemVerDiff {
     }
 
     /**
-     * @param array<int, array{identity: IdentityKey, display: string[]}> $entries
+     * @param SignatureBucket[] $entries
      */
-    private function findMatchingEntryIndex(IdentityKey $identity, array $entries): ?int {
+    private function findMatchingBucketIndex(IdentityKey $identity, array $entries): ?int {
         foreach ($entries as $index => $entry) {
-            if ($this->identitiesMatch($entry['identity'], $identity)) {
+            if ($this->identitiesMatch($entry->getIdentity(), $identity)) {
                 return $index;
             }
         }
