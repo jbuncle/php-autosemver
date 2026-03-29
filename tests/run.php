@@ -7,8 +7,11 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 use AutomaticSemver\CLI;
+use AutomaticSemver\DiffEntries;
 use AutomaticSemver\DiffReport;
 use AutomaticSemver\FileSearch\SystemFile;
+use AutomaticSemver\ReportIdentity;
+use AutomaticSemver\SignatureBucket;
 use AutomaticSemver\SemVerDiff;
 use AutomaticSemver\Signature\CallableIdentity;
 use AutomaticSemver\Signature\CallableSignature;
@@ -261,7 +264,7 @@ function testSemanticDiffUsesIdentityEqualityNotOnlySerializedKeys(): void {
 
     $previous = invokePrivateMethod($diff, 'indexSignatures', [[$left]]);
     $current = invokePrivateMethod($diff, 'indexSignatures', [[$right]]);
-    $matched = invokePrivateMethod($diff, 'findMatchingEntry', [$left, $current]);
+    $matched = invokePrivateMethod($diff, 'findMatchingBucket', [$left, $current]);
 
     assertTrue('Semantic diff lookups should use equality rather than serialized keys alone.', $matched !== null);
 }
@@ -284,9 +287,45 @@ function testSignatureIndexPreservesAllDisplaysForOneIdentity(): void {
     ];
 
     $index = invokePrivateMethod($diff, 'indexSignatures', [$signatures]);
-    $rendered = invokePrivateMethod($diff, 'findMatchingEntry', [$signatures[0], $index]);
+    $rendered = invokePrivateMethod($diff, 'findMatchingBucket', [$signatures[0], $index]);
 
-    assertSameList('Semantic identity buckets should preserve every legacy display string for reporting.', ['\Demo\One->demo()', '\Demo\Two->demo()'], $rendered['display']);
+    assertSameList('Semantic identity buckets should preserve every legacy display string for reporting.', ['\Demo\One->demo()', '\Demo\Two->demo()'], $rendered->getDisplays());
+}
+
+function testDiffEntriesFlattenDisplays(): void {
+    $entries = new DiffEntries(
+        [new SignatureBucket(new ReportIdentity('same'), ['same-one', 'same-two'])],
+        [new SignatureBucket(new ReportIdentity('new'), ['new-one'])],
+        [new SignatureBucket(new ReportIdentity('removed'), ['removed-one'])]
+    );
+
+    assertSameList('DiffEntries should flatten unchanged bucket displays.', ['same-one', 'same-two'], $entries->flattenDisplays($entries->getUnchanged()));
+    assertSameList('DiffEntries should flatten new bucket displays.', ['new-one'], $entries->getNewDisplays());
+    assertSameList('DiffEntries should flatten removed bucket displays.', ['removed-one'], $entries->getRemovedDisplays());
+    assertTrue('DiffEntries should detect new signatures.', $entries->hasNew());
+    assertTrue('DiffEntries should detect removed signatures.', $entries->hasRemoved());
+}
+
+function testDiffEntriesCanBeBuiltFromLegacyDisplays(): void {
+    $entries = DiffEntries::fromLegacyDisplays(['same-one'], ['new-one'], ['removed-one']);
+
+    assertSameList('Legacy display construction should preserve unchanged displays.', ['same-one'], $entries->getUnchangedDisplays());
+    assertSameList('Legacy display construction should preserve new displays.', ['new-one'], $entries->getNewDisplays());
+    assertSameList('Legacy display construction should preserve removed displays.', ['removed-one'], $entries->getRemovedDisplays());
+}
+
+function testDiffReportCanBeBuiltFromBuckets(): void {
+    $entries = new DiffEntries(
+        [new SignatureBucket(new ReportIdentity('same'), ['sameSignature'])],
+        [new SignatureBucket(new ReportIdentity('new'), ['newSignature'])],
+        [new SignatureBucket(new ReportIdentity('removed'), ['removedSignature'])]
+    );
+    $report = new DiffReport('from-tag', 'to-tag', $entries);
+
+    assertSameValue('Bucket-backed reports should still report MAJOR when removals exist.', 'MAJOR', $report->getIncrement());
+    assertContainsText('Bucket-backed reports should still include unchanged signatures.', "	sameSignature", $report->toString(2));
+    assertContainsText('Bucket-backed reports should still include new signatures.', "	newSignature", $report->toString(1));
+    assertContainsText('Bucket-backed reports should still include removed signatures.', "	removedSignature", $report->toString(1));
 }
 
 function testSignatureIdentityKeepsCurrentDiffBehaviour(): void {
@@ -913,6 +952,9 @@ testExplicitIdentityObjectsRenderStableKeys();
 testIdentityEqualityUsesSemanticObjectComparison();
 testSemanticDiffUsesIdentityEqualityNotOnlySerializedKeys();
 testSignatureIndexPreservesAllDisplaysForOneIdentity();
+testDiffEntriesFlattenDisplays();
+testDiffEntriesCanBeBuiltFromLegacyDisplays();
+testDiffReportCanBeBuiltFromBuckets();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();
