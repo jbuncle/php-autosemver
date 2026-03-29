@@ -13,6 +13,7 @@ use AutomaticSemver\DiffReportRenderer;
 use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\IncrementDecider;
 use AutomaticSemver\ReportIdentity;
+use AutomaticSemver\RevisionRange;
 use AutomaticSemver\SignatureBucket;
 use AutomaticSemver\SemVerDiff;
 use AutomaticSemver\Signature\CallableIdentity;
@@ -340,18 +341,26 @@ function testIncrementDeciderUsesEntryState(): void {
 
 function testDiffReportRendererFormatsBucketEntries(): void {
     $renderer = new DiffReportRenderer();
-    $entries = new DiffEntries(
+    $report = DiffReport::fromEntries('from-tag', 'to-tag', new DiffEntries(
         [new SignatureBucket(new ReportIdentity('same'), ['sameSignature'])],
         [new SignatureBucket(new ReportIdentity('new'), ['newSignature'])],
         [new SignatureBucket(new ReportIdentity('removed'), ['removedSignature'])]
-    );
-    $rendered = $renderer->render('from-tag', 'to-tag', $entries, 2);
+    ));
+    $rendered = $renderer->render($report, 2);
 
     assertContainsText('Report rendering should include the comparison header.', 'Comparing from-tag => to-tag', $rendered);
     assertContainsText('Report rendering should include unchanged entries.', "	sameSignature", $rendered);
     assertContainsText('Report rendering should include new entries.', "	newSignature", $rendered);
     assertContainsText('Report rendering should include removed entries.', "	removedSignature", $rendered);
     assertContainsText('Report rendering should append the resolved increment.', 'MAJOR', $rendered);
+}
+
+function testRevisionRangeCarriesReportLabels(): void {
+    $range = new RevisionRange('from-tag', 'to-tag');
+
+    assertSameValue('Revision ranges should expose the from label.', 'from-tag', $range->getFrom());
+    assertSameValue('Revision ranges should expose the to label.', 'to-tag', $range->getTo());
+    assertSameValue('Revision ranges should preserve the current display format.', 'from-tag => to-tag', $range->toDisplayString());
 }
 
 function testDiffReportNamedConstructorsPreserveBehaviour(): void {
@@ -361,6 +370,8 @@ function testDiffReportNamedConstructorsPreserveBehaviour(): void {
     $legacyReport = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
     assertSameValue('Entry-backed report construction should preserve increment semantics.', 'MAJOR', $entryReport->getIncrement());
+    assertSameValue('Entry-backed reports should preserve the from label.', 'from-tag', $entryReport->getFrom());
+    assertSameValue('Entry-backed reports should preserve the to label.', 'to-tag', $entryReport->getTo());
     assertSameValue('Legacy-display report construction should preserve increment semantics.', 'MAJOR', $legacyReport->getIncrement());
     assertContainsText('Entry-backed report construction should preserve rendering.', "	sameSignature", $entryReport->toString(2));
     assertContainsText('Legacy-display report construction should preserve rendering.', "	removedSignature", $legacyReport->toString(1));
@@ -995,6 +1006,7 @@ testDiffEntriesCanBeBuiltFromLegacyDisplays();
 testDiffReportCanBeBuiltFromBuckets();
 testIncrementDeciderUsesEntryState();
 testDiffReportRendererFormatsBucketEntries();
+testRevisionRangeCarriesReportLabels();
 testDiffReportNamedConstructorsPreserveBehaviour();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();

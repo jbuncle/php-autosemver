@@ -17,29 +17,29 @@ class DiffReportRenderer {
     /**
      * @param 0|1|2 $level
      */
-    public function render(string $from, string $to, DiffEntries $entries, int $level): string {
+    public function render(DiffReport $report, int $level): string {
         $str = '';
         if ($level >= 1) {
-            $str .= "Comparing $from => $to\n";
+            $str .= "Comparing " . $report->getRange()->toDisplayString() . "\n";
         }
         if ($level >= 2) {
             $str .= "Unchanged:\n";
-            foreach ($entries->getUnchangedDisplays() as $unchangedSignature) {
+            foreach ($report->getEntries()->getUnchangedDisplays() as $unchangedSignature) {
                 $str .= "\t$unchangedSignature\n";
             }
         }
         if ($level >= 1) {
             $str .= "New:\n";
-            foreach ($entries->getNewDisplays() as $newSignature) {
+            foreach ($report->getEntries()->getNewDisplays() as $newSignature) {
                 $str .= "\t$newSignature\n";
             }
 
             $str .= "Removed:\n";
-            foreach ($entries->getRemovedDisplays() as $removedSignature) {
+            foreach ($report->getEntries()->getRemovedDisplays() as $removedSignature) {
                 $str .= "\t$removedSignature\n";
             }
         }
 
-        return $str . $this->incrementDecider->decide($entries);
+        return $str . $this->incrementDecider->decide($report->getEntries());
     }
 }

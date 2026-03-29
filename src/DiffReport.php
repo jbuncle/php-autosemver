@@ -14,7 +14,7 @@ namespace AutomaticSemver;
 class DiffReport {
 
     public static function fromEntries(string $from, string $to, DiffEntries $entries): self {
-        return new self($from, $to, $entries);
+        return new self(new RevisionRange($from, $to), null, $entries);
     }
 
     /**
@@ -23,20 +23,14 @@ class DiffReport {
      * @param string[] $removedSignatures
      */
     public static function fromLegacyDisplays(string $from, string $to, array $unchangedSignatures, array $newSignatures, array $removedSignatures): self {
-        return new self($from, $to, $unchangedSignatures, $newSignatures, $removedSignatures);
+        return new self(new RevisionRange($from, $to), null, $unchangedSignatures, $newSignatures, $removedSignatures);
     }
 
     /**
      *
-     * @var string
+     * @var RevisionRange
      */
-    private $from;
-
-    /**
-     *
-     * @var string
-     */
-    private $to;
+    private $range;
 
     /**
      *
@@ -62,8 +56,11 @@ class DiffReport {
      * @param string[] $removedSignatures
      */
     public function __construct($from, $to, $unchangedSignatures, $newSignatures = [], $removedSignatures = []) {
-        $this->from = $from;
-        $this->to = $to;
+        if ($from instanceof RevisionRange) {
+            $this->range = $from;
+        } else {
+            $this->range = new RevisionRange($from, $to);
+        }
         $this->incrementDecider = new IncrementDecider();
         $this->renderer = new DiffReportRenderer($this->incrementDecider);
         if ($unchangedSignatures instanceof DiffEntries) {
@@ -80,7 +77,23 @@ class DiffReport {
      * @return string
      */
     public function toString(int $level): string {
-        return $this->renderer->render($this->from, $this->to, $this->entries, $level);
+        return $this->renderer->render($this, $level);
+    }
+
+    public function getRange(): RevisionRange {
+        return $this->range;
+    }
+
+    public function getFrom(): string {
+        return $this->range->getFrom();
+    }
+
+    public function getTo(): string {
+        return $this->range->getTo();
+    }
+
+    public function getEntries(): DiffEntries {
+        return $this->entries;
     }
 
     /**
