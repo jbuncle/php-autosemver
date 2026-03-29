@@ -13,6 +13,8 @@ use AutomaticSemver\DiffReportRenderer;
 use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\IncrementDecider;
 use AutomaticSemver\ReportIdentity;
+use AutomaticSemver\SignatureBuckets;
+use AutomaticSemver\SignatureDiffSnapshot;
 use AutomaticSemver\RevisionRange;
 use AutomaticSemver\SignatureBucket;
 use AutomaticSemver\SemVerDiff;
@@ -265,11 +267,12 @@ function testSemanticDiffUsesIdentityEqualityNotOnlySerializedKeys(): void {
         public function __toString(): string { return $this->toLegacyString(); }
     };
 
-    $previous = invokePrivateMethod($diff, 'indexSignatures', [[$left]]);
-    $current = invokePrivateMethod($diff, 'indexSignatures', [[$right]]);
-    $matched = invokePrivateMethod($diff, 'findMatchingBucket', [$left, $current]);
+    $previous = SignatureBuckets::fromSignatures([$left]);
+    $current = SignatureBuckets::fromSignatures([$right]);
+    $matched = $current->findMatching($left);
 
     assertTrue('Semantic diff lookups should use equality rather than serialized keys alone.', $matched !== null);
+    assertTrue('Semantic diff setup should still build a previous bucket set.', count($previous->all()) === 1);
 }
 
 function testSignatureIndexPreservesAllDisplaysForOneIdentity(): void {
@@ -289,10 +292,49 @@ function testSignatureIndexPreservesAllDisplaysForOneIdentity(): void {
         },
     ];
 
-    $index = invokePrivateMethod($diff, 'indexSignatures', [$signatures]);
-    $rendered = invokePrivateMethod($diff, 'findMatchingBucket', [$signatures[0], $index]);
+    $index = SignatureBuckets::fromSignatures($signatures);
+    $rendered = $index->findMatching($signatures[0]);
 
     assertSameList('Semantic identity buckets should preserve every legacy display string for reporting.', ['\Demo\One->demo()', '\Demo\Two->demo()'], $rendered->getDisplays());
+}
+
+function testSignatureDiffSnapshotProducesEntries(): void {
+    $previous = new SignatureBuckets([
+        new SignatureBucket(new ReportIdentity('same'), ['sameSignature']),
+        new SignatureBucket(new ReportIdentity('removed'), ['removedSignature']),
+    ]);
+    $current = new SignatureBuckets([
+        new SignatureBucket(new ReportIdentity('same'), ['sameSignature']),
+        new SignatureBucket(new ReportIdentity('new'), ['newSignature']),
+    ]);
+
+    $entries = (new SignatureDiffSnapshot($previous, $current))->toEntries();
+
+    assertSameList('Signature snapshots should preserve unchanged buckets.', ['sameSignature'], $entries->getUnchangedDisplays());
+    assertSameList('Signature snapshots should preserve new buckets.', ['newSignature'], $entries->getNewDisplays());
+    assertSameList('Signature snapshots should preserve removed buckets.', ['removedSignature'], $entries->getRemovedDisplays());
+}
+
+function testSignatureBucketsCanBeBuiltFromSignatures(): void {
+    $signatures = [
+        new class implements LegacySignature {
+            public function toLegacyString(): string { return '\Demo\One->demo()'; }
+            public function toIdentityKey(): string { return 'callable|name:demo'; }
+            public function equals(IdentityKey $other): bool { return $other->toIdentityKey() === $this->toIdentityKey(); }
+            public function __toString(): string { return $this->toLegacyString(); }
+        },
+        new class implements LegacySignature {
+            public function toLegacyString(): string { return '\Demo\Two->demo()'; }
+            public function toIdentityKey(): string { return 'callable|name:demo'; }
+            public function equals(IdentityKey $other): bool { return $other->toIdentityKey() === $this->toIdentityKey(); }
+            public function __toString(): string { return $this->toLegacyString(); }
+        },
+    ];
+
+    $buckets = SignatureBuckets::fromSignatures($signatures);
+
+    assertTrue('Signature bucket construction should collapse semantically matching signatures into one bucket.', count($buckets->all()) === 1);
+    assertSameList('Signature bucket construction should retain every legacy display string.', ['\Demo\One->demo()', '\Demo\Two->demo()'], $buckets->findMatching($signatures[0])->getDisplays());
 }
 
 function testDiffEntriesFlattenDisplays(): void {
@@ -1015,6 +1057,8 @@ testExplicitIdentityObjectsRenderStableKeys();
 testIdentityEqualityUsesSemanticObjectComparison();
 testSemanticDiffUsesIdentityEqualityNotOnlySerializedKeys();
 testSignatureIndexPreservesAllDisplaysForOneIdentity();
+testSignatureDiffSnapshotProducesEntries();
+testSignatureBucketsCanBeBuiltFromSignatures();
 testDiffEntriesFlattenDisplays();
 testDiffEntriesCanBeBuiltFromLegacyDisplays();
 testDiffReportCanBeBuiltFromBuckets();

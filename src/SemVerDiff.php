@@ -8,8 +8,6 @@ namespace AutomaticSemver;
 
 use AutomaticSemver\FileSearch\SystemFileSearch;
 use AutomaticSemver\GitSearch\GitSearch;
-use AutomaticSemver\Signature\IdentityKey;
-use AutomaticSemver\Signature\LegacySignature;
 
 /**
  * SemVerDiff
@@ -96,78 +94,15 @@ class SemVerDiff {
         $startFiles = $this->getFilesForLabel($startRevision, $filter);
         $endFiles = $this->getFilesForLabel($endRevision, $filter);
 
-        $previous = $this->indexSignatures($signatureSearch->getSignatureModels($startFiles));
-        $current = $this->indexSignatures($signatureSearch->getSignatureModels($endFiles));
-
-        $unchanged = [];
-        $new = [];
-        foreach ($current as $bucket) {
-            if ($this->findMatchingBucket($bucket->getIdentity(), $previous) !== null) {
-                $unchanged[] = $bucket;
-            } else {
-                $new[] = $bucket;
-            }
-        }
-
-        $removed = [];
-        foreach ($previous as $bucket) {
-            if ($this->findMatchingBucket($bucket->getIdentity(), $current) === null) {
-                $removed[] = $bucket;
-            }
-        }
+        $previous = SignatureBuckets::fromSignatures($signatureSearch->getSignatureModels($startFiles));
+        $current = SignatureBuckets::fromSignatures($signatureSearch->getSignatureModels($endFiles));
+        $snapshot = new SignatureDiffSnapshot($previous, $current);
 
         return DiffReport::fromEntries(
             $startRevision,
             $endRevision,
-            new DiffEntries($unchanged, $new, $removed)
+            $snapshot->toEntries()
         );
-    }
-
-    /**
-     * @param LegacySignature[] $signatures
-     * @return SignatureBucket[]
-     */
-    private function indexSignatures(array $signatures): array {
-        $index = [];
-        foreach ($signatures as $signature) {
-            $matchedIndex = $this->findMatchingBucketIndex($signature, $index);
-            if ($matchedIndex === null) {
-                $index[] = new SignatureBucket($signature, [$signature->toLegacyString()]);
-                continue;
-            }
-
-            $index[$matchedIndex]->addDisplay($signature->toLegacyString());
-        }
-        return $index;
-    }
-
-    /**
-     * @param SignatureBucket[] $entries
-     */
-    private function findMatchingBucket(IdentityKey $identity, array $entries): ?SignatureBucket {
-        $matchedIndex = $this->findMatchingBucketIndex($identity, $entries);
-        if ($matchedIndex === null) {
-            return null;
-        }
-
-        return $entries[$matchedIndex];
-    }
-
-    /**
-     * @param SignatureBucket[] $entries
-     */
-    private function findMatchingBucketIndex(IdentityKey $identity, array $entries): ?int {
-        foreach ($entries as $index => $entry) {
-            if ($this->identitiesMatch($entry->getIdentity(), $identity)) {
-                return $index;
-            }
-        }
-
-        return null;
-    }
-
-    private function identitiesMatch(IdentityKey $left, IdentityKey $right): bool {
-        return $left->equals($right) || $right->equals($left);
     }
 
     private static function startsWithAny(string $str, array $prefixes) {
