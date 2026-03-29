@@ -128,8 +128,12 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
         }, $object->getSignatures());
     }
 
+    protected function getIdentityPath(): string {
+        return 'namespace:' . $this->getPath();
+    }
+
     protected function prefixSignatureModel(LegacySignature $signature): LegacySignature {
-        return new PrefixedSignature($this->getPath(), $signature);
+        return new PrefixedSignature($this->getPath(), $signature, $this->getIdentityPath());
     }
 
     private function isIgnorable($stmt) {

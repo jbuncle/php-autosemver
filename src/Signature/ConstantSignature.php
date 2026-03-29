@@ -28,7 +28,11 @@ class ConstantSignature implements LegacySignature {
     }
 
     public function toIdentityKey(): string {
-        return 'const|' . $this->name . '|value:' . $this->value;
+        return implode('|', [
+            'constant',
+            'name:' . $this->name,
+            'value:' . $this->value,
+        ]);
     }
 
     public function __toString(): string {

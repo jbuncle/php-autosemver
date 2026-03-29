@@ -16,19 +16,38 @@ class PropertySignature implements LegacySignature {
     /**
      * @var string
      */
-    private $prefix;
+    private $visibility;
 
-    public function __construct(string $name, string $prefix = '') {
+    /**
+     * @var bool
+     */
+    private $isStatic;
+
+    public function __construct(string $name, string $visibility = 'public', bool $isStatic = false) {
         $this->name = $name;
-        $this->prefix = $prefix;
+        $this->visibility = $visibility;
+        $this->isStatic = $isStatic;
     }
 
     public function toLegacyString(): string {
-        return $this->prefix . '$' . $this->name;
+        $prefix = '';
+        if ($this->visibility === 'protected') {
+            $prefix .= 'protected ';
+        }
+        if ($this->isStatic) {
+            $prefix .= 'static ';
+        }
+
+        return $prefix . '$' . $this->name;
     }
 
     public function toIdentityKey(): string {
-        return 'property|' . $this->prefix . '|$' . $this->name;
+        return implode('|', [
+            'property',
+            'name:' . $this->name,
+            'visibility:' . $this->visibility,
+            'static:' . ($this->isStatic ? '1' : '0'),
+        ]);
     }
 
     public function __toString(): string {

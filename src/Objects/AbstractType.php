@@ -51,7 +51,7 @@ abstract class AbstractType
 
         foreach ($this->getObjects() as $object) {
             foreach ($this->getModelsForObject($object) as $signature) {
-                $signatures[] = new PrefixedSignature($this->getPath(), $signature);
+                $signatures[] = new PrefixedSignature($this->getPath(), $signature, $this->getIdentityPrefix());
             }
         }
 
@@ -70,9 +70,36 @@ abstract class AbstractType
     }
 
     protected function getPath() {
-        $sig = '';
-        $sig .= (string) $this->obj->name;
-        return $sig;
+        return $this->getTypeName();
+    }
+
+    protected function getIdentityPrefix(): string {
+        $parts = [
+            'container',
+            'kind:' . $this->getTypeKind(),
+            'name:' . $this->getTypeName(),
+        ];
+
+        if ($this->obj instanceof \PhpParser\Node\Stmt\Class_) {
+            $parts[] = 'abstract:' . ($this->obj->isAbstract() ? '1' : '0');
+            $parts[] = 'final:' . ($this->obj->isFinal() ? '1' : '0');
+        }
+
+        return implode('|', $parts);
+    }
+
+    protected function getTypeName(): string {
+        return (string) $this->obj->name;
+    }
+
+    private function getTypeKind(): string {
+        if ($this->obj instanceof \PhpParser\Node\Stmt\Interface_) {
+            return 'interface';
+        }
+        if ($this->obj instanceof \PhpParser\Node\Stmt\Trait_) {
+            return 'trait';
+        }
+        return 'class';
     }
 
     /**

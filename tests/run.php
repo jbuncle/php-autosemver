@@ -13,7 +13,9 @@ use AutomaticSemver\SemVerDiff;
 use AutomaticSemver\Signature\CallableSignature;
 use AutomaticSemver\Signature\ConstantSignature;
 use AutomaticSemver\Signature\DefaultValue;
+use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\ParameterSignature;
+use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\PropertySignature;
 use AutomaticSemver\Signature\TypeReference;
 use AutomaticSemver\SignatureSearch;
@@ -134,13 +136,13 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
     assertSameValue('Callable signature models should support string casting.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', (string) $callable);
     assertContainsText('Callable signature identity should carry structural information.', 'callable|dispatch:->|name:demo', $callable->toIdentityKey());
 
-    $property = new PropertySignature('counter', 'protected static ');
+    $property = new PropertySignature('counter', 'protected', true);
     assertSameValue('Property signature models should render the current legacy format.', 'protected static $counter', $property->toLegacyString());
-    assertSameValue('Property signature identity should be structural.', 'property|protected static |$counter', $property->toIdentityKey());
+    assertSameValue('Property signature identity should be structural.', 'property|name:counter|visibility:protected|static:1', $property->toIdentityKey());
 
     $constant = new ConstantSignature('STATUS', "'ok'");
     assertSameValue('Constant signature models should render the current legacy format.', "::STATUS = 'ok'", (string) $constant);
-    assertSameValue('Constant signature identity should be structural.', "const|STATUS|value:'ok'", $constant->toIdentityKey());
+    assertSameValue('Constant signature identity should be structural.', "constant|name:STATUS|value:'ok'", $constant->toIdentityKey());
 }
 
 
@@ -157,6 +159,45 @@ function testTypeReferenceModelsRenderCurrentStrings(): void {
     $type = new TypeReference('?\Vendor\Thing');
     assertSameValue('Type reference models should render the current legacy format.', '?\Vendor\Thing', (string) $type);
     assertSameValue('Type reference identity should be structural.', 'type:?\Vendor\Thing', $type->toIdentityKey());
+}
+
+
+function invokePrivateMethod($object, string $methodName, array $arguments = []) {
+    $method = new ReflectionMethod($object, $methodName);
+    $method->setAccessible(true);
+    return $method->invokeArgs($object, $arguments);
+}
+
+function testPrefixedSignatureCanSeparateIdentityFromLegacyFormatting(): void {
+    $signature = new PrefixedSignature(
+        '{abstract Foo}',
+        new CallableSignature('->', 'demo', [], null),
+        'container|kind:class|name:Foo|abstract:1|final:0'
+    );
+
+    assertSameValue('Prefixed signatures should keep the current legacy rendering.', '{abstract Foo}->demo()', $signature->toLegacyString());
+    assertContainsText('Prefixed signatures should use the supplied semantic identity prefix.', 'prefixed|container|kind:class|name:Foo|abstract:1|final:0|callable|dispatch:->|name:demo', $signature->toIdentityKey());
+}
+
+function testSignatureIndexPreservesAllDisplaysForOneIdentity(): void {
+    $diff = new SemVerDiff(sys_get_temp_dir(), [], []);
+    $signatures = [
+        new class implements LegacySignature {
+            public function toLegacyString(): string { return '\\Demo\\One->demo()'; }
+            public function toIdentityKey(): string { return 'callable|name:demo'; }
+            public function __toString(): string { return $this->toLegacyString(); }
+        },
+        new class implements LegacySignature {
+            public function toLegacyString(): string { return '\\Demo\\Two->demo()'; }
+            public function toIdentityKey(): string { return 'callable|name:demo'; }
+            public function __toString(): string { return $this->toLegacyString(); }
+        },
+    ];
+
+    $index = invokePrivateMethod($diff, 'indexSignatures', [$signatures]);
+    $rendered = invokePrivateMethod($diff, 'mapSignatureKeysToStrings', [['callable|name:demo'], $index]);
+
+    assertSameList('Semantic identity buckets should preserve every legacy display string for reporting.', ['\\Demo\\One->demo()', '\\Demo\\Two->demo()'], $rendered);
 }
 
 function testSignatureIdentityKeepsCurrentDiffBehaviour(): void {
@@ -778,6 +819,8 @@ function testCliParsingAndDefaults(): void {
 testLegacySignatureModelsRenderCurrentStrings();
 testParameterSignatureModelsRenderCurrentStrings();
 testTypeReferenceModelsRenderCurrentStrings();
+testPrefixedSignatureCanSeparateIdentityFromLegacyFormatting();
+testSignatureIndexPreservesAllDisplaysForOneIdentity();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();

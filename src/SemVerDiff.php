@@ -113,25 +113,36 @@ class SemVerDiff {
 
     /**
      * @param LegacySignature[] $signatures
-     * @return array<string, string>
+     * @return array<string, string[]>
      */
     private function indexSignatures(array $signatures): array {
         $index = [];
         foreach ($signatures as $signature) {
-            $index[$signature->toIdentityKey()] = $signature->toLegacyString();
+            $key = $signature->toIdentityKey();
+            $display = $signature->toLegacyString();
+            if (!array_key_exists($key, $index)) {
+                $index[$key] = [];
+            }
+            if (!in_array($display, $index[$key], true)) {
+                $index[$key][] = $display;
+            }
         }
         return $index;
     }
 
     /**
      * @param string[] $keys
-     * @param array<string, string> $index
+     * @param array<string, string[]> $index
      * @return string[]
      */
     private function mapSignatureKeysToStrings(array $keys, array $index): array {
-        return array_values(array_map(function (string $key) use ($index): string {
-            return $index[$key];
-        }, $keys));
+        $signatures = [];
+        foreach ($keys as $key) {
+            foreach ($index[$key] as $signature) {
+                $signatures[] = $signature;
+            }
+        }
+        return $signatures;
     }
 
     private static function startsWithAny(string $str, array $prefixes) {

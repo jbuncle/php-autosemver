@@ -41,18 +41,13 @@ class PropertyObject
             // Ignore private properties
             return [];
         }
-        $prefix = '';
 
-        if ($this->propertyObj->isProtected()) {
-            $prefix = 'protected ';
-        }
-        if ($this->propertyObj->isStatic()) {
-            $prefix .= 'static ';
-        }
+        $visibility = $this->propertyObj->isProtected() ? 'protected' : 'public';
+        $isStatic = $this->propertyObj->isStatic();
 
         $sigs = [];
         foreach ($this->propertyObj->props as $prop) {
-            $sigs[] = new PropertySignature((string) $prop->name, $prefix);
+            $sigs[] = new PropertySignature((string) $prop->name, $visibility, $isStatic);
         }
 
         return $sigs;
