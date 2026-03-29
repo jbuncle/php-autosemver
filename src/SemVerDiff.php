@@ -116,7 +116,7 @@ class SemVerDiff {
             }
         }
 
-        return new DiffReport(
+        return DiffReport::fromEntries(
             $startRevision,
             $endRevision,
             new DiffEntries($unchanged, $new, $removed)

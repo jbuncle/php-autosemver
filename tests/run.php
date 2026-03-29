@@ -322,7 +322,7 @@ function testDiffReportCanBeBuiltFromBuckets(): void {
         [new SignatureBucket(new ReportIdentity('new'), ['newSignature'])],
         [new SignatureBucket(new ReportIdentity('removed'), ['removedSignature'])]
     );
-    $report = new DiffReport('from-tag', 'to-tag', $entries);
+    $report = DiffReport::fromEntries('from-tag', 'to-tag', $entries);
 
     assertSameValue('Bucket-backed reports should still report MAJOR when removals exist.', 'MAJOR', $report->getIncrement());
     assertContainsText('Bucket-backed reports should still include unchanged signatures.', "	sameSignature", $report->toString(2));
@@ -352,6 +352,18 @@ function testDiffReportRendererFormatsBucketEntries(): void {
     assertContainsText('Report rendering should include new entries.', "	newSignature", $rendered);
     assertContainsText('Report rendering should include removed entries.', "	removedSignature", $rendered);
     assertContainsText('Report rendering should append the resolved increment.', 'MAJOR', $rendered);
+}
+
+function testDiffReportNamedConstructorsPreserveBehaviour(): void {
+    $entries = DiffEntries::fromLegacyDisplays(['sameSignature'], ['newSignature'], ['removedSignature']);
+
+    $entryReport = DiffReport::fromEntries('from-tag', 'to-tag', $entries);
+    $legacyReport = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
+
+    assertSameValue('Entry-backed report construction should preserve increment semantics.', 'MAJOR', $entryReport->getIncrement());
+    assertSameValue('Legacy-display report construction should preserve increment semantics.', 'MAJOR', $legacyReport->getIncrement());
+    assertContainsText('Entry-backed report construction should preserve rendering.', "	sameSignature", $entryReport->toString(2));
+    assertContainsText('Legacy-display report construction should preserve rendering.', "	removedSignature", $legacyReport->toString(1));
 }
 
 function testSignatureIdentityKeepsCurrentDiffBehaviour(): void {
@@ -916,7 +928,7 @@ function testCliPreloadFailuresAndUnknownOptions(): void {
 }
 
 function testDiffReportFormatting(): void {
-    $report = new DiffReport('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
+    $report = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
     assertSameValue('Removed signatures should produce a MAJOR increment.', 'MAJOR', $report->getIncrement());
     assertContainsText('Verbosity 1 output should include the comparison header.', 'Comparing from-tag => to-tag', $report->toString(1));
@@ -983,6 +995,7 @@ testDiffEntriesCanBeBuiltFromLegacyDisplays();
 testDiffReportCanBeBuiltFromBuckets();
 testIncrementDeciderUsesEntryState();
 testDiffReportRendererFormatsBucketEntries();
+testDiffReportNamedConstructorsPreserveBehaviour();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();
 testGitIgnoreInlineCommentsAreIgnored();

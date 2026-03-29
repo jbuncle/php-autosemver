@@ -13,6 +13,19 @@ namespace AutomaticSemver;
  */
 class DiffReport {
 
+    public static function fromEntries(string $from, string $to, DiffEntries $entries): self {
+        return new self($from, $to, $entries);
+    }
+
+    /**
+     * @param string[] $unchangedSignatures
+     * @param string[] $newSignatures
+     * @param string[] $removedSignatures
+     */
+    public static function fromLegacyDisplays(string $from, string $to, array $unchangedSignatures, array $newSignatures, array $removedSignatures): self {
+        return new self($from, $to, $unchangedSignatures, $newSignatures, $removedSignatures);
+    }
+
     /**
      *
      * @var string
