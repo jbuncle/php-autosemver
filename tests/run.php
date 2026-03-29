@@ -300,8 +300,18 @@ function testDiffEntriesFlattenDisplays(): void {
     );
 
     assertSameList('DiffEntries should flatten unchanged bucket displays.', ['same-one', 'same-two'], $entries->flattenDisplays($entries->getUnchanged()));
-    assertSameList('DiffEntries should flatten new bucket displays.', ['new-one'], $entries->flattenDisplays($entries->getNew()));
-    assertSameList('DiffEntries should flatten removed bucket displays.', ['removed-one'], $entries->flattenDisplays($entries->getRemoved()));
+    assertSameList('DiffEntries should flatten new bucket displays.', ['new-one'], $entries->getNewDisplays());
+    assertSameList('DiffEntries should flatten removed bucket displays.', ['removed-one'], $entries->getRemovedDisplays());
+    assertTrue('DiffEntries should detect new signatures.', $entries->hasNew());
+    assertTrue('DiffEntries should detect removed signatures.', $entries->hasRemoved());
+}
+
+function testDiffEntriesCanBeBuiltFromLegacyDisplays(): void {
+    $entries = DiffEntries::fromLegacyDisplays(['same-one'], ['new-one'], ['removed-one']);
+
+    assertSameList('Legacy display construction should preserve unchanged displays.', ['same-one'], $entries->getUnchangedDisplays());
+    assertSameList('Legacy display construction should preserve new displays.', ['new-one'], $entries->getNewDisplays());
+    assertSameList('Legacy display construction should preserve removed displays.', ['removed-one'], $entries->getRemovedDisplays());
 }
 
 function testDiffReportCanBeBuiltFromBuckets(): void {
@@ -943,6 +953,7 @@ testIdentityEqualityUsesSemanticObjectComparison();
 testSemanticDiffUsesIdentityEqualityNotOnlySerializedKeys();
 testSignatureIndexPreservesAllDisplaysForOneIdentity();
 testDiffEntriesFlattenDisplays();
+testDiffEntriesCanBeBuiltFromLegacyDisplays();
 testDiffReportCanBeBuiltFromBuckets();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();

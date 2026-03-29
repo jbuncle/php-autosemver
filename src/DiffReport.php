@@ -44,11 +44,7 @@ class DiffReport {
             return;
         }
 
-        $this->entries = new DiffEntries(
-            [new SignatureBucket(new ReportIdentity('unchanged'), $unchangedSignatures)],
-            [new SignatureBucket(new ReportIdentity('new'), $newSignatures)],
-            [new SignatureBucket(new ReportIdentity('removed'), $removedSignatures)]
-        );
+        $this->entries = DiffEntries::fromLegacyDisplays($unchangedSignatures, $newSignatures, $removedSignatures);
     }
 
     /**
@@ -88,21 +84,21 @@ class DiffReport {
      * @return string[]
      */
     public function getUnchangedSignatures(): array {
-        return $this->entries->flattenDisplays($this->entries->getUnchanged());
+        return $this->entries->getUnchangedDisplays();
     }
 
     /**
      * @return string[]
      */
     public function getNewSignatures(): array {
-        return $this->entries->flattenDisplays($this->entries->getNew());
+        return $this->entries->getNewDisplays();
     }
 
     /**
      * @return string[]
      */
     public function getRemovedSignatures(): array {
-        return $this->entries->flattenDisplays($this->entries->getRemoved());
+        return $this->entries->getRemovedDisplays();
     }
 
     /**
@@ -110,9 +106,9 @@ class DiffReport {
      * @return "MAJOR"|"MINOR"|"PATCH"
      */
     public function getIncrement(): string {
-        if (!empty($this->getRemovedSignatures())) {
+        if ($this->entries->hasRemoved()) {
             return "MAJOR";
-        } else if (!empty($this->getNewSignatures())) {
+        } else if ($this->entries->hasNew()) {
             return "MINOR";
         } else {
             return "PATCH";
