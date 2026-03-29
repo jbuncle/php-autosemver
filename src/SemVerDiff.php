@@ -8,6 +8,7 @@ namespace AutomaticSemver;
 
 use AutomaticSemver\FileSearch\SystemFileSearch;
 use AutomaticSemver\GitSearch\GitSearch;
+use AutomaticSemver\Signature\LegacySignature;
 
 /**
  * SemVerDiff
@@ -94,8 +95,8 @@ class SemVerDiff {
         $startFiles = $this->getFilesForLabel($startRevision, $filter);
         $endFiles = $this->getFilesForLabel($endRevision, $filter);
 
-        $prevSignatures = $signatureSearch->getSignatures($startFiles);
-        $currentSignatures = $signatureSearch->getSignatures($endFiles);
+        $prevSignatures = $this->normalizeSignatures($signatureSearch->getSignatureModels($startFiles));
+        $currentSignatures = $this->normalizeSignatures($signatureSearch->getSignatureModels($endFiles));
 
         $unchangedSignatures = array_intersect($currentSignatures, $prevSignatures);
         $newSignatures = array_diff($currentSignatures, $prevSignatures);
@@ -108,6 +109,16 @@ class SemVerDiff {
                 $newSignatures,
                 $removedSignatures
         );
+    }
+
+    /**
+     * @param LegacySignature[] $signatures
+     * @return string[]
+     */
+    private function normalizeSignatures(array $signatures): array {
+        return array_map(function (LegacySignature $signature): string {
+            return $signature->toLegacyString();
+        }, $signatures);
     }
 
     private static function startsWithAny(string $str, array $prefixes) {
@@ -124,10 +135,10 @@ class SemVerDiff {
     }
 
     /**
-     * 
+     *
      * @param string $label
      * @param callable $filter
-     * 
+     *
      * @return array<FileI>
      */
     private function getFilesForLabel(string $label, callable $filter): array {
