@@ -17,7 +17,7 @@ use Exception;
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-abstract class AbstractNamespace implements Signatures, TypeLookup {
+abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
 
     public function getAbsoluteType($typeObj): string {
 
@@ -119,10 +119,8 @@ abstract class AbstractNamespace implements Signatures, TypeLookup {
      * @return LegacySignature[]
      */
     private function getModelsForObject(Signatures $object): array {
-        if (method_exists($object, 'getSignatureModels')) {
-            /** @var LegacySignature[] $models */
-            $models = $object->getSignatureModels();
-            return $models;
+        if ($object instanceof SignatureModelProvider) {
+            return $object->getSignatureModels();
         }
 
         return array_map(function (string $signature): LegacySignature {

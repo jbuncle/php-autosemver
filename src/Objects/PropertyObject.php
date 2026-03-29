@@ -15,7 +15,7 @@ use AutomaticSemver\Signature\PropertySignature;
  * @author James Buncle <jbuncle@hotmail.com>
  */
 class PropertyObject
-        implements Signatures {
+        implements SignatureModelProvider {
 
     /**
      *

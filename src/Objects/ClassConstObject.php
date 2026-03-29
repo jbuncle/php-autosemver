@@ -14,7 +14,7 @@ use AutomaticSemver\Signature\LegacySignature;
  *
  * @author James Buncle <jbuncle@hotmail.com>
  */
-class ClassConstObject implements Signatures {
+class ClassConstObject implements SignatureModelProvider {
 
     /**
      *
