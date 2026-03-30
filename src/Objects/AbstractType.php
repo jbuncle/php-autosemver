@@ -7,10 +7,12 @@
 namespace AutomaticSemver\Objects;
 
 use AutomaticSemver\Signature\ContainerIdentity;
+use AutomaticSemver\Signature\ContractSignature;
 use AutomaticSemver\Signature\IdentityKey;
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\RawSignature;
+use AutomaticSemver\Signature\TypeReference;
 use Exception;
 
 /**
@@ -25,7 +27,7 @@ abstract class AbstractType
      *
      * @var NamespaceObject
      */
-    private $namespaceObj;
+    protected $namespaceObj;
 
     /**
      *
@@ -49,7 +51,7 @@ abstract class AbstractType
      * @return LegacySignature[]
      */
     public function getSignatureModels(): array {
-        $signatures = [];
+        $signatures = $this->getContractSignatureModels();
 
         foreach ($this->getObjects() as $object) {
             foreach ($this->getModelsForObject($object) as $signature) {
@@ -86,6 +88,67 @@ abstract class AbstractType
 
     protected function getTypeName(): string {
         return (string) $this->obj->name;
+    }
+
+    /**
+     * @return LegacySignature[]
+     */
+    protected function getContractSignatureModels(): array {
+        $signatures = [];
+
+        $extendedTypes = $this->getExtendedTypes();
+        if (!empty($extendedTypes)) {
+            $signatures[] = new PrefixedSignature(
+                $this->getPath(),
+                new ContractSignature('extends', $extendedTypes),
+                $this->getIdentityPrefix()
+            );
+        }
+
+        $implementedTypes = $this->getImplementedTypes();
+        if (!empty($implementedTypes)) {
+            $signatures[] = new PrefixedSignature(
+                $this->getPath(),
+                new ContractSignature('implements', $implementedTypes),
+                $this->getIdentityPrefix()
+            );
+        }
+
+        return $signatures;
+    }
+
+    /**
+     * @return TypeReference[]
+     */
+    protected function getExtendedTypes(): array {
+        if ($this->obj instanceof \PhpParser\Node\Stmt\Class_ && $this->obj->extends !== null) {
+            return [$this->createTypeReferenceFromName($this->obj->extends)];
+        }
+
+        if ($this->obj instanceof \PhpParser\Node\Stmt\Interface_) {
+            return array_map(function (\PhpParser\Node\Name $name): TypeReference {
+                return $this->createTypeReferenceFromName($name);
+            }, $this->obj->extends);
+        }
+
+        return [];
+    }
+
+    /**
+     * @return TypeReference[]
+     */
+    protected function getImplementedTypes(): array {
+        if (!$this->obj instanceof \PhpParser\Node\Stmt\Class_) {
+            return [];
+        }
+
+        return array_map(function (\PhpParser\Node\Name $name): TypeReference {
+            return $this->createTypeReferenceFromName($name);
+        }, $this->obj->implements);
+    }
+
+    protected function createTypeReferenceFromName(\PhpParser\Node\Name $name): TypeReference {
+        return new TypeReference($this->namespaceObj->getAbsoluteType((string) $name));
     }
 
     private function getTypeKind(): string {
