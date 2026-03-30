@@ -37,11 +37,23 @@ class ClassConstObject implements SignatureModelProvider {
      */
     public function getSignatureModels(): array {
         $sigs = [];
+        $visibility = $this->getVisibility();
 
         foreach ($this->constObj->consts as $const) {
-            $sigs[] = new ConstantSignature((string) $const->name, $this->getValueString($const->value));
+            $sigs[] = new ConstantSignature((string) $const->name, $this->getValueString($const->value), $visibility);
         }
         return $sigs;
+    }
+
+    private function getVisibility(): string {
+        if ($this->constObj->isPrivate()) {
+            return 'private';
+        }
+        if ($this->constObj->isProtected()) {
+            return 'protected';
+        }
+
+        return 'public';
     }
 
     private function getValueString($value): string {

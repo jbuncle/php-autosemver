@@ -169,9 +169,9 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
     assertSameValue('Property signature models should render the current legacy format.', 'protected static int $counter', $property->toLegacyString());
     assertSameValue('Property signature identity should be structural.', 'property|name:counter|visibility:protected|static:1|type:int', $property->toIdentityKey());
 
-    $constant = new ConstantSignature('STATUS', "'ok'");
-    assertSameValue('Constant signature models should render the current legacy format.', "::STATUS = 'ok'", (string) $constant);
-    assertSameValue('Constant signature identity should be structural.', "constant|name:STATUS|value:'ok'", $constant->toIdentityKey());
+    $constant = new ConstantSignature('STATUS', "'ok'", 'protected');
+    assertSameValue('Constant signature models should render the current legacy format.', "protected ::STATUS = 'ok'", (string) $constant);
+    assertSameValue('Constant signature identity should be structural.', "constant|name:STATUS|visibility:protected|value:'ok'", $constant->toIdentityKey());
 }
 
 
@@ -237,8 +237,8 @@ function testExplicitIdentityObjectsRenderStableKeys(): void {
     $property = new PropertyIdentity('counter', 'protected', true, new TypeReference('int'));
     assertSameValue('Property identity objects should render the current key format.', 'property|name:counter|visibility:protected|static:1|type:int', $property->toIdentityKey());
 
-    $constant = new ConstantIdentity('STATUS', "'ok'");
-    assertSameValue('Constant identity objects should render the current key format.', "constant|name:STATUS|value:'ok'", $constant->toIdentityKey());
+    $constant = new ConstantIdentity('STATUS', "'ok'", 'protected');
+    assertSameValue('Constant identity objects should render the current key format.', "constant|name:STATUS|visibility:protected|value:'ok'", $constant->toIdentityKey());
 
     $contract = new ContractIdentity('implements', [new TypeReference('\Vendor\Contract')]);
     assertSameValue('Contract identity objects should render the current key format.', 'contract|kind:implements|types:[type:\Vendor\Contract]', $contract->toIdentityKey());
@@ -1148,6 +1148,50 @@ PHP,
         '\Demo\{abstract Base}->__construct()',
         '\Demo\{abstract Base}->{protected final make(\DateTimeImmutable):\DateTimeImmutable}',
     ], $signatures);
+}
+
+function testSignatureSearchCapturesConstantVisibility(): void {
+    $root = createRepository('constant-visibility', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const PUBLIC_VALUE = 1;
+    protected const PROTECTED_VALUE = 2;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Class constant visibility should be part of the signature surface.', [
+        '\Demo\Values->__construct()',
+        '\Demo\Values::PUBLIC_VALUE = 1',
+        '\Demo\Valuesprotected ::PROTECTED_VALUE = 2',
+    ], $signatures);
+}
+
+function testConstantVisibilityChangesAffectDiffs(): void {
+    $root = createRepository('constant-visibility-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const STATUS = 1;
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    protected const STATUS = 1;
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing class constant visibility should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testSignatureSearchFormatsClassConstantUnaryValues(): void {
