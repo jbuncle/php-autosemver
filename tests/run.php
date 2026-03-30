@@ -12,6 +12,7 @@ use AutomaticSemver\DiffReport;
 use AutomaticSemver\DiffReportRenderer;
 use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\IncrementDecider;
+use AutomaticSemver\VersionIncrement;
 use AutomaticSemver\ReportIdentity;
 use AutomaticSemver\SignatureBuckets;
 use AutomaticSemver\SignatureDiffSnapshot;
@@ -398,7 +399,8 @@ function testDiffReportCanBeBuiltFromBuckets(): void {
     );
     $report = DiffReport::fromEntries('from-tag', 'to-tag', $entries);
 
-    assertSameValue('Bucket-backed reports should still report MAJOR when removals exist.', 'MAJOR', $report->getIncrement());
+    assertTrue('Bucket-backed reports should resolve MAJOR increment values.', $report->getIncrementValue()->equals(VersionIncrement::major()));
+    assertTrue('Bucket-backed reports should expose increment value objects.', $report->getIncrementValue()->equals(VersionIncrement::major()));
     assertContainsText('Bucket-backed reports should still include unchanged signatures.', "	sameSignature", $report->toString(2));
     assertContainsText('Bucket-backed reports should still include new signatures.', "	newSignature", $report->toString(1));
     assertContainsText('Bucket-backed reports should still include removed signatures.', "	removedSignature", $report->toString(1));
@@ -407,9 +409,22 @@ function testDiffReportCanBeBuiltFromBuckets(): void {
 function testIncrementDeciderUsesEntryState(): void {
     $decider = new IncrementDecider();
 
-    assertSameValue('Removed entries should be MAJOR.', 'MAJOR', $decider->decide(DiffEntries::fromLegacyDisplays([], [], ['removed'])));
-    assertSameValue('New entries without removals should be MINOR.', 'MINOR', $decider->decide(DiffEntries::fromLegacyDisplays([], ['new'], [])));
-    assertSameValue('No changes should be PATCH.', 'PATCH', $decider->decide(DiffEntries::fromLegacyDisplays(['same'], [], [])));
+    assertSameValue('Removed entries should be MAJOR.', 'MAJOR', $decider->decide(DiffEntries::fromLegacyDisplays([], [], ['removed']))->toString());
+    assertSameValue('New entries without removals should be MINOR.', 'MINOR', $decider->decide(DiffEntries::fromLegacyDisplays([], ['new'], []))->toString());
+    assertSameValue('No changes should be PATCH.', 'PATCH', $decider->decide(DiffEntries::fromLegacyDisplays(['same'], [], []))->toString());
+}
+
+function testVersionIncrementBehavesLikeAValueObject(): void {
+    assertTrue('Major increments should compare equal by value.', VersionIncrement::major()->equals(VersionIncrement::major()));
+    assertTrue('Different increment values should not compare equal.', !VersionIncrement::major()->equals(VersionIncrement::minor()));
+    assertSameValue('Version increments should preserve the current string values.', 'PATCH', VersionIncrement::patch()->toString());
+    assertSameValue('Version increments should support string casting.', 'MINOR', (string) VersionIncrement::minor());
+}
+
+function testDiffReportStillExposesLegacyIncrementStrings(): void {
+    $report = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], []);
+
+    assertSameValue('Diff reports should keep exposing the legacy increment string API for compatibility.', 'MINOR', $report->getIncrement());
 }
 
 function testDiffReportRendererFormatsBucketEntries(): void {
@@ -442,10 +457,10 @@ function testDiffReportNamedConstructorsPreserveBehaviour(): void {
     $entryReport = DiffReport::fromEntries('from-tag', 'to-tag', $entries);
     $legacyReport = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
-    assertSameValue('Entry-backed report construction should preserve increment semantics.', 'MAJOR', $entryReport->getIncrement());
+    assertTrue('Entry-backed report construction should preserve increment semantics.', $entryReport->getIncrementValue()->equals(VersionIncrement::major()));
     assertSameValue('Entry-backed reports should preserve the from label.', 'from-tag', $entryReport->getFrom());
     assertSameValue('Entry-backed reports should preserve the to label.', 'to-tag', $entryReport->getTo());
-    assertSameValue('Legacy-display report construction should preserve increment semantics.', 'MAJOR', $legacyReport->getIncrement());
+    assertTrue('Legacy-display report construction should preserve increment semantics.', $legacyReport->getIncrementValue()->equals(VersionIncrement::major()));
     assertSameValue('Legacy-display reports should preserve the from label.', 'from-tag', $legacyReport->getFrom());
     assertSameValue('Legacy-display reports should preserve the to label.', 'to-tag', $legacyReport->getTo());
     assertContainsText('Entry-backed report construction should preserve rendering.', "	sameSignature", $entryReport->toString(2));
@@ -1028,7 +1043,7 @@ function testCliPreloadFailuresAndUnknownOptions(): void {
 function testDiffReportFormatting(): void {
     $report = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
 
-    assertSameValue('Removed signatures should produce a MAJOR increment.', 'MAJOR', $report->getIncrement());
+    assertTrue('Removed signatures should produce a MAJOR increment.', $report->getIncrementValue()->equals(VersionIncrement::major()));
     assertContainsText('Verbosity 1 output should include the comparison header.', 'Comparing from-tag => to-tag', $report->toString(1));
     assertContainsText('Verbosity 2 output should include unchanged signatures.', "\tsameSignature", $report->toString(2));
 }
@@ -1095,6 +1110,8 @@ testDiffEntriesFlattenDisplays();
 testDiffEntriesCanBeBuiltFromLegacyDisplays();
 testDiffReportCanBeBuiltFromBuckets();
 testIncrementDeciderUsesEntryState();
+testVersionIncrementBehavesLikeAValueObject();
+testDiffReportStillExposesLegacyIncrementStrings();
 testDiffReportRendererFormatsBucketEntries();
 testRevisionRangeCarriesReportLabels();
 testDiffReportNamedConstructorsPreserveBehaviour();

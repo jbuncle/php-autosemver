@@ -40,6 +40,6 @@ class DiffReportRenderer {
             }
         }
 
-        return $str . $report->getIncrement();
+        return $str . $report->getIncrementValue()->toString();
     }
 }
