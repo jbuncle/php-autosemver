@@ -107,25 +107,50 @@ abstract class AbstractFunction implements SignatureModelProvider {
             return null;
         }
 
-        if ($param->default instanceof \PhpParser\Node\Expr\Array_) {
-            $value = '[';
-            foreach ($param->default->items as $item) {
-                $value .= $item->value->value;
-            }
-            $value .= ']';
-            return new DefaultValue($value);
+        return new DefaultValue($this->renderDefaultExpression($param->default));
+    }
+
+    private function renderDefaultExpression($expression): string {
+        if ($expression instanceof \PhpParser\Node\Expr\Array_) {
+            $items = array_map(function (\PhpParser\Node\Expr\ArrayItem $item): string {
+                $value = $this->renderDefaultExpression($item->value);
+                if ($item->key === null) {
+                    return $value;
+                }
+
+                return $this->renderDefaultExpression($item->key) . ' => ' . $value;
+            }, $expression->items);
+
+            return '[' . implode(', ', $items) . ']';
         }
-        if ($param->default instanceof \PhpParser\Node\Expr\ConstFetch) {
-            return new DefaultValue((string) $param->default->name);
+        if ($expression instanceof \PhpParser\Node\Expr\ConstFetch) {
+            return (string) $expression->name;
         }
-        if ($param->default instanceof \PhpParser\Node\Expr\UnaryMinus) {
-            return new DefaultValue('-' . $param->default->expr->value);
+        if ($expression instanceof \PhpParser\Node\Expr\ClassConstFetch) {
+            return $this->renderDefaultClassName($expression->class) . '::' . $expression->name;
         }
-        if ($param->default instanceof \PhpParser\Node\Expr\UnaryPlus) {
-            return new DefaultValue('+' . $param->default->expr->value);
+        if ($expression instanceof \PhpParser\Node\Expr\UnaryMinus) {
+            return '-' . $this->renderDefaultExpression($expression->expr);
+        }
+        if ($expression instanceof \PhpParser\Node\Expr\UnaryPlus) {
+            return '+' . $this->renderDefaultExpression($expression->expr);
+        }
+        if ($expression instanceof \PhpParser\Node\Scalar\String_) {
+            return "'" . $expression->value . "'";
+        }
+        if ($expression instanceof \PhpParser\Node\Scalar\LNumber || $expression instanceof \PhpParser\Node\Scalar\DNumber) {
+            return (string) $expression->value;
         }
 
-        return new DefaultValue((string) $param->default->value);
+        return (string) $expression;
+    }
+
+    private function renderDefaultClassName($class): string {
+        if ($class instanceof \PhpParser\Node\Name\FullyQualified) {
+            return '\\' . ltrim((string) $class, '\\');
+        }
+
+        return $this->parentObject->getAbsoluteType($class);
     }
 
     protected function getFullType($type): string {

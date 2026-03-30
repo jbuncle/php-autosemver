@@ -911,6 +911,52 @@ PHP
     assertSameValue('Adding PHP 7.2 built-in or contextual types should affect the diff result.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+function testSignatureSearchFormatsRicherDefaultExpressions(): void {
+    $root = createRepository('default-expression-shapes', [
+        'src/Defaults.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config;
+function build(
+    array $items = ['name' => 'demo', 'enabled' => true],
+    $mode = Config::DEFAULT_MODE,
+    array $mapping = [1 => Config::DEFAULT_MODE, 2 => null]
+): void {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Defaults.php']);
+    assertSameList('Default expressions should preserve keyed arrays, quoted strings, booleans, nulls, and class constants.', [
+        "\\Demo\\build():void",
+        "\\Demo\\build(array = ['name' => 'demo', 'enabled' => true], mixed = \\Vendor\\Config::DEFAULT_MODE, array = [1 => \\Vendor\\Config::DEFAULT_MODE, 2 => null]):void",
+        "\\Demo\\build(array = ['name' => 'demo', 'enabled' => true], mixed = \\Vendor\\Config::DEFAULT_MODE):void",
+        "\\Demo\\build(array = ['name' => 'demo', 'enabled' => true]):void",
+        "\\Demo\\build(array, mixed, array):void",
+        "\\Demo\\build(array, mixed):void",
+        "\\Demo\\build(array):void",
+    ], $signatures);
+}
+
+function testDefaultExpressionRenderingAffectsDiffs(): void {
+    $root = createRepository('default-expression-diff', [
+        'src/Defaults.php' => <<<'PHP'
+<?php
+namespace Demo;
+function build(array $items = []): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Defaults.php', <<<'PHP'
+<?php
+namespace Demo;
+function build(array $items = ['name' => 'demo']): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing a richer default expression should still affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsDefaultValues(): void {
     $root = createRepository('default-values', [
         'src/Defaults.php' => <<<'PHP'
