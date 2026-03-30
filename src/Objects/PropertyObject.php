@@ -8,6 +8,8 @@ namespace AutomaticSemver\Objects;
 
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\PropertySignature;
+use AutomaticSemver\Signature\TypeReference;
+use AutomaticSemver\TypeLookup;
 
 /**
  * PropertyObject
@@ -23,8 +25,14 @@ class PropertyObject
      */
     private $propertyObj;
 
-    function __construct(\PhpParser\Node\Stmt\Property $propertyObj) {
+    /**
+     * @var TypeLookup|null
+     */
+    private $typeLookup;
+
+    public function __construct(\PhpParser\Node\Stmt\Property $propertyObj, ?TypeLookup $typeLookup = null) {
         $this->propertyObj = $propertyObj;
+        $this->typeLookup = $typeLookup;
     }
 
     public function getSignatures(): array {
@@ -44,13 +52,21 @@ class PropertyObject
 
         $visibility = $this->propertyObj->isProtected() ? 'protected' : 'public';
         $isStatic = $this->propertyObj->isStatic();
+        $type = $this->getPropertyType();
 
         $sigs = [];
         foreach ($this->propertyObj->props as $prop) {
-            $sigs[] = new PropertySignature((string) $prop->name, $visibility, $isStatic);
+            $sigs[] = new PropertySignature((string) $prop->name, $visibility, $isStatic, $type);
         }
 
         return $sigs;
     }
 
+    private function getPropertyType(): ?TypeReference {
+        if ($this->propertyObj->type === null || $this->typeLookup === null) {
+            return null;
+        }
+
+        return new TypeReference($this->typeLookup->getAbsoluteType($this->propertyObj->type));
+    }
 }

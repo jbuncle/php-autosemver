@@ -6,6 +6,8 @@
 
 namespace AutomaticSemver\Objects;
 
+use AutomaticSemver\TypeLookup;
+
 /**
  * PropertyObject
  *
@@ -13,5 +15,8 @@ namespace AutomaticSemver\Objects;
  */
 class ClassMemberObject
         extends PropertyObject {
-    
+
+    public function __construct(\PhpParser\Node\Stmt\Property $propertyObj, TypeLookup $typeLookup) {
+        parent::__construct($propertyObj, $typeLookup);
+    }
 }

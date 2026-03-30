@@ -23,10 +23,16 @@ class PropertyIdentity implements IdentityKey {
      */
     private $isStatic;
 
-    public function __construct(string $name, string $visibility = 'public', bool $isStatic = false) {
+    /**
+     * @var IdentityKey|null
+     */
+    private $type;
+
+    public function __construct(string $name, string $visibility = 'public', bool $isStatic = false, ?IdentityKey $type = null) {
         $this->name = $name;
         $this->visibility = $visibility;
         $this->isStatic = $isStatic;
+        $this->type = $type;
     }
 
     public function toIdentityKey(): string {
@@ -35,6 +41,7 @@ class PropertyIdentity implements IdentityKey {
             'name:' . $this->name,
             'visibility:' . $this->visibility,
             'static:' . ($this->isStatic ? '1' : '0'),
+            $this->type ? $this->type->toIdentityKey() : 'type:none',
         ]);
     }
 
@@ -42,6 +49,15 @@ class PropertyIdentity implements IdentityKey {
         return $other instanceof self
             && $this->name === $other->name
             && $this->visibility === $other->visibility
-            && $this->isStatic === $other->isStatic;
+            && $this->isStatic === $other->isStatic
+            && $this->typeMatches($other->type);
+    }
+
+    private function typeMatches(?IdentityKey $otherType): bool {
+        if ($this->type === null || $otherType === null) {
+            return $this->type === $otherType;
+        }
+
+        return $this->type->equals($otherType);
     }
 }
