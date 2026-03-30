@@ -813,6 +813,57 @@ PHP,
 }
 
 
+function testSignatureSearchPreservesPhp72BuiltinAndContextualTypes(): void {
+    $root = createRepository('php72-builtins', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+class BaseThing {}
+class ChildThing extends BaseThing {
+    public function connect(object $target, iterable $items): object {}
+    protected function cloneParent(parent $source): parent {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Types.php']);
+    assertSameList('PHP 7.2 built-in and contextual types should stay semantic rather than being namespaced.', [
+        '\Demo\BaseThing->__construct()',
+        '\Demo\ChildThing->__construct()',
+        '\Demo\ChildThing extends \Demo\BaseThing',
+        '\Demo\ChildThing->connect(object, iterable):object',
+        '\Demo\ChildThing->{protected cloneParent(parent):parent}',
+    ], $signatures);
+}
+
+function testBuiltinAndParentTypeChangesAffectDiffs(): void {
+    $root = createRepository('php72-type-diff', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+class BaseThing {}
+class ChildThing extends BaseThing {
+    public function connect($target, $items) {}
+    protected function cloneParent($source) {}
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Types.php', <<<'PHP'
+<?php
+namespace Demo;
+class BaseThing {}
+class ChildThing extends BaseThing {
+    public function connect(object $target, iterable $items): object {}
+    protected function cloneParent(parent $source): parent {}
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Adding PHP 7.2 built-in or contextual types should affect the diff result.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsDefaultValues(): void {
     $root = createRepository('default-values', [
         'src/Defaults.php' => <<<'PHP'
