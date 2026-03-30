@@ -94,9 +94,10 @@ class SemVerDiff {
         $startFiles = $this->getFilesForLabel($startRevision, $filter);
         $endFiles = $this->getFilesForLabel($endRevision, $filter);
 
-        $previous = SignatureBuckets::fromSignatures($signatureSearch->getSignatureModels($startFiles));
-        $current = SignatureBuckets::fromSignatures($signatureSearch->getSignatureModels($endFiles));
-        $snapshot = new SignatureDiffSnapshot($previous, $current);
+        $snapshot = SignatureDiffSnapshot::fromSignatures(
+            $signatureSearch->getSignatureModels($startFiles),
+            $signatureSearch->getSignatureModels($endFiles)
+        );
 
         return DiffReport::fromEntries(
             $startRevision,

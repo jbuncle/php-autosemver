@@ -6,7 +6,20 @@
 
 namespace AutomaticSemver;
 
+use AutomaticSemver\Signature\LegacySignature;
+
 class SignatureDiffSnapshot {
+
+    /**
+     * @param LegacySignature[] $previousSignatures
+     * @param LegacySignature[] $currentSignatures
+     */
+    public static function fromSignatures(array $previousSignatures, array $currentSignatures): self {
+        return new self(
+            SignatureBuckets::fromSignatures($previousSignatures),
+            SignatureBuckets::fromSignatures($currentSignatures)
+        );
+    }
 
     /**
      * @var SignatureBuckets
