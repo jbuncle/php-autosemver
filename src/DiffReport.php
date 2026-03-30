@@ -100,25 +100,37 @@ class DiffReport {
         return $this->range->getTo();
     }
 
+    public function getUnchangedSection(): DiffSection {
+        return $this->entries->getUnchanged();
+    }
+
+    public function getNewSection(): DiffSection {
+        return $this->entries->getNew();
+    }
+
+    public function getRemovedSection(): DiffSection {
+        return $this->entries->getRemoved();
+    }
+
     /**
      * @return string[]
      */
     public function getUnchangedSignatures(): array {
-        return $this->entries->getUnchangedDisplays();
+        return $this->getUnchangedSection()->getDisplays();
     }
 
     /**
      * @return string[]
      */
     public function getNewSignatures(): array {
-        return $this->entries->getNewDisplays();
+        return $this->getNewSection()->getDisplays();
     }
 
     /**
      * @return string[]
      */
     public function getRemovedSignatures(): array {
-        return $this->entries->getRemovedDisplays();
+        return $this->getRemovedSection()->getDisplays();
     }
 
     public function getIncrementValue(): VersionIncrement {
