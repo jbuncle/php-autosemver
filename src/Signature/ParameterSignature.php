@@ -19,20 +19,29 @@ class ParameterSignature implements LegacySignature {
     private $variadic;
 
     /**
+     * @var bool
+     */
+    private $byReference;
+
+    /**
      * @var DefaultValue|null
      */
     private $defaultValue;
 
-    public function __construct(TypeReference $type, bool $variadic = false, ?DefaultValue $defaultValue = null) {
+    public function __construct(TypeReference $type, bool $variadic = false, ?DefaultValue $defaultValue = null, bool $byReference = false) {
         $this->type = $type;
         $this->variadic = $variadic;
         $this->defaultValue = $defaultValue;
+        $this->byReference = $byReference;
     }
 
     public function toLegacyString(): string {
         $parameter = '';
         if ($this->variadic) {
             $parameter .= '...';
+        }
+        if ($this->byReference) {
+            $parameter .= '&';
         }
 
         $parameter .= $this->type->toLegacyString();
@@ -57,7 +66,7 @@ class ParameterSignature implements LegacySignature {
     }
 
     public function getIdentity(): ParameterIdentity {
-        return new ParameterIdentity($this->type, $this->variadic, $this->defaultValue);
+        return new ParameterIdentity($this->type, $this->variadic, $this->defaultValue, $this->byReference);
     }
 
     public function __toString(): string {

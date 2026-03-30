@@ -91,7 +91,8 @@ abstract class AbstractFunction implements SignatureModelProvider {
             $parameters[] = new ParameterSignature(
                 $this->getTypeReference($param->type),
                 (bool) $param->variadic,
-                $this->createDefaultValue($param, $doDefault)
+                $this->createDefaultValue($param, $doDefault),
+                (bool) $param->byRef
             );
         }
         return $parameters;

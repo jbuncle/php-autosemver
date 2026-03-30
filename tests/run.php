@@ -179,6 +179,9 @@ function testParameterSignatureModelsRenderCurrentStrings(): void {
     $variadic = new ParameterSignature(new TypeReference('string'), true);
     assertSameValue('Variadic parameter signature models should render the current legacy format.', '...string', $variadic->toLegacyString());
 
+    $byReference = new ParameterSignature(new TypeReference('array'), false, null, true);
+    assertSameValue('By-reference parameter signature models should render the current legacy format.', '&array', $byReference->toLegacyString());
+
     $defaulted = new ParameterSignature(new TypeReference('int'), false, new DefaultValue('-1'));
     assertSameValue('Default-value parameter signature models should render the current legacy format.', 'int = -1', (string) $defaulted);
 }
@@ -225,11 +228,11 @@ function testExplicitIdentityObjectsRenderStableKeys(): void {
     $container = new ContainerIdentity('class', 'Foo', true, false);
     assertSameValue('Container identity objects should render the current key format.', 'container|kind:class|name:Foo|abstract:1|final:0', $container->toIdentityKey());
 
-    $parameter = new ParameterIdentity(new TypeReference('string'), true, new DefaultValue('0'));
-    assertSameValue('Parameter identity objects should render the current key format.', 'param|variadic:1|type:string|default:0', $parameter->toIdentityKey());
+    $parameter = new ParameterIdentity(new TypeReference('string'), true, new DefaultValue('0'), true);
+    assertSameValue('Parameter identity objects should render the current key format.', 'param|variadic:1|byref:1|type:string|default:0', $parameter->toIdentityKey());
 
-    $callable = new CallableIdentity('->', 'demo', [$parameter], new TypeReference('?\\Vendor\\Thing'), ['protected'], true);
-    assertContainsText('Callable identity objects should render the current key format.', 'callable|dispatch:->|name:demo|wrap:1|modifiers:protected|params:[param|variadic:1|type:string|default:0]|type:?\\Vendor\\Thing', $callable->toIdentityKey());
+    $callable = new CallableIdentity('->', 'demo', [$parameter], new TypeReference('?\\Vendor\\Thing'), ['protected'], true, true);
+    assertContainsText('Callable identity objects should render the current key format.', 'callable|dispatch:->|name:demo|wrap:1|returnsref:1|modifiers:protected|params:[param|variadic:1|byref:1|type:string|default:0]|type:?\\Vendor\\Thing', $callable->toIdentityKey());
 
     $property = new PropertyIdentity('counter', 'protected', true, new TypeReference('int'));
     assertSameValue('Property identity objects should render the current key format.', 'property|name:counter|visibility:protected|static:1|type:int', $property->toIdentityKey());
@@ -927,6 +930,46 @@ PHP,
         '\Demo\build(array = []):void',
         '\Demo\build(array):void',
     ], $signatures);
+}
+
+function testSignatureSearchCapturesByReferenceCallables(): void {
+    $root = createRepository('by-reference-callables', [
+        'src/Refs.php' => <<<'PHP'
+<?php
+namespace Demo;
+function &pool(array &$items): array {}
+class Store {
+    public function &take(\ArrayObject &$items): \ArrayObject {}
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Refs.php']);
+    assertSameList('By-reference parameters and returns should be part of the callable signature surface.', [
+        '\Demo\&pool(&array):array',
+        '\Demo\Store->__construct()',
+        '\Demo\Store->&take(&\ArrayObject):\ArrayObject',
+    ], $signatures);
+}
+
+function testByReferenceChangesAffectDiffs(): void {
+    $root = createRepository('by-reference-diff', [
+        'src/Refs.php' => <<<'PHP'
+<?php
+namespace Demo;
+function pool(array $items): array {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Refs.php', <<<'PHP'
+<?php
+namespace Demo;
+function &pool(array &$items): array {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Adding by-reference callable semantics should affect the diff result.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testSignatureSearchCoversVariadicStaticMethods(): void {
