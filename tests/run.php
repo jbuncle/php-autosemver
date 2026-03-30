@@ -464,6 +464,25 @@ function testDiffReportStillExposesLegacyIncrementStrings(): void {
     assertTrue('Diff reports should expose their resolved state object.', $report->getState()->getIncrement()->equals(VersionIncrement::minor()));
 }
 
+function testDiffReportRendererCanRenderReportState(): void {
+    $renderer = new DiffReportRenderer();
+    $state = (new DiffReportStateFactory())->create(
+        new RevisionRange('from-tag', 'to-tag'),
+        new DiffEntries(
+            [new SignatureBucket(new ReportIdentity('same'), ['sameSignature'])],
+            [new SignatureBucket(new ReportIdentity('new'), ['newSignature'])],
+            [new SignatureBucket(new ReportIdentity('removed'), ['removedSignature'])]
+        )
+    );
+    $rendered = $renderer->renderState($state, 2);
+
+    assertContainsText('State-backed rendering should include the comparison header.', 'Comparing from-tag => to-tag', $rendered);
+    assertContainsText('State-backed rendering should include unchanged entries.', "	sameSignature", $rendered);
+    assertContainsText('State-backed rendering should include new entries.', "	newSignature", $rendered);
+    assertContainsText('State-backed rendering should include removed entries.', "	removedSignature", $rendered);
+    assertContainsText('State-backed rendering should append the resolved increment.', 'MAJOR', $rendered);
+}
+
 function testDiffReportRendererFormatsBucketEntries(): void {
     $renderer = new DiffReportRenderer();
     $report = DiffReport::fromEntries('from-tag', 'to-tag', new DiffEntries(

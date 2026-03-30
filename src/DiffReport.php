@@ -53,11 +53,6 @@ class DiffReport {
     private $state;
 
     /**
-     * @var DiffReportRenderer
-     */
-    private $renderer;
-
-    /**
      * @param string[]|DiffEntries $unchangedSignatures
      * @param string[] $newSignatures
      * @param string[] $removedSignatures
@@ -69,7 +64,6 @@ class DiffReport {
             : DiffEntries::fromLegacyDisplays($unchangedSignatures, $newSignatures, $removedSignatures);
 
         $this->state = self::getStateFactory()->create($range, $entries);
-        $this->renderer = new DiffReportRenderer();
     }
 
     public function getState(): DiffReportState {
@@ -82,7 +76,7 @@ class DiffReport {
      * @return string
      */
     public function toString(int $level): string {
-        return $this->renderer->render($this, $level);
+        return (new DiffReportRenderer())->renderState($this->state, $level);
     }
 
     public function getRange(): RevisionRange {
