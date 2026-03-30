@@ -53,7 +53,8 @@ class ClassMethodObject
             $this->createParameterSignatures($methodParams, $doDefault),
             $returnType ? $this->getTypeReference($returnType) : null,
             $modifiers,
-            $wrap
+            $wrap,
+            (bool) $this->functionLikeObj->byRef
         );
     }
 

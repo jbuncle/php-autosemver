@@ -39,16 +39,22 @@ class CallableIdentity implements IdentityKey {
     private $wrap;
 
     /**
+     * @var bool
+     */
+    private $returnsReference;
+
+    /**
      * @param IdentityKey[] $parameters
      * @param string[] $modifiers
      */
-    public function __construct(string $dispatch, string $name, array $parameters, ?IdentityKey $returnType, array $modifiers = [], bool $wrap = false) {
+    public function __construct(string $dispatch, string $name, array $parameters, ?IdentityKey $returnType, array $modifiers = [], bool $wrap = false, bool $returnsReference = false) {
         $this->dispatch = $dispatch;
         $this->name = $name;
         $this->parameters = $parameters;
         $this->returnType = $returnType;
         $this->modifiers = $modifiers;
         $this->wrap = $wrap;
+        $this->returnsReference = $returnsReference;
     }
 
     public function toIdentityKey(): string {
@@ -57,6 +63,7 @@ class CallableIdentity implements IdentityKey {
             'dispatch:' . $this->dispatch,
             'name:' . $this->name,
             'wrap:' . ($this->wrap ? '1' : '0'),
+            'returnsref:' . ($this->returnsReference ? '1' : '0'),
             'modifiers:' . implode(',', $this->modifiers),
             'params:[' . implode(',', array_map(function (IdentityKey $parameter): string {
                 return $parameter->toIdentityKey();
@@ -70,6 +77,7 @@ class CallableIdentity implements IdentityKey {
             && $this->dispatch === $other->dispatch
             && $this->name === $other->name
             && $this->wrap === $other->wrap
+            && $this->returnsReference === $other->returnsReference
             && $this->modifiers === $other->modifiers
             && $this->parametersMatch($other->parameters)
             && $this->identityMatches($this->returnType, $other->returnType);

@@ -26,7 +26,10 @@ class FunctionObject
             '',
             $this->getName(),
             $this->createParameterSignatures($methodParams, $doDefault),
-            $returnType ? $this->getTypeReference($returnType) : null
+            $returnType ? $this->getTypeReference($returnType) : null,
+            [],
+            false,
+            (bool) $this->functionLikeObj->byRef
         );
     }
 
