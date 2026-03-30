@@ -12,5 +12,7 @@ namespace AutomaticSemver;
  */
 interface TypeLookup {
 
+    public function getAbsoluteType($typeObj): string;
+
     public function getSignatures(): array;
 }

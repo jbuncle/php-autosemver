@@ -23,10 +23,16 @@ class PropertySignature implements LegacySignature {
      */
     private $isStatic;
 
-    public function __construct(string $name, string $visibility = 'public', bool $isStatic = false) {
+    /**
+     * @var TypeReference|null
+     */
+    private $type;
+
+    public function __construct(string $name, string $visibility = 'public', bool $isStatic = false, ?TypeReference $type = null) {
         $this->name = $name;
         $this->visibility = $visibility;
         $this->isStatic = $isStatic;
+        $this->type = $type;
     }
 
     public function toLegacyString(): string {
@@ -36,6 +42,9 @@ class PropertySignature implements LegacySignature {
         }
         if ($this->isStatic) {
             $prefix .= 'static ';
+        }
+        if ($this->type !== null) {
+            $prefix .= $this->type->toLegacyString() . ' ';
         }
 
         return $prefix . '$' . $this->name;
@@ -54,7 +63,7 @@ class PropertySignature implements LegacySignature {
     }
 
     public function getIdentity(): PropertyIdentity {
-        return new PropertyIdentity($this->name, $this->visibility, $this->isStatic);
+        return new PropertyIdentity($this->name, $this->visibility, $this->isStatic, $this->type);
     }
 
     public function __toString(): string {

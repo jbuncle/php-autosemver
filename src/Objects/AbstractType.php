@@ -191,7 +191,7 @@ abstract class AbstractType
     private function stmtToObj($stmt) {
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Property) {
-            return new ClassMemberObject($stmt);
+            return new ClassMemberObject($stmt, $this->namespaceObj);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
             return new ClassConstObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {

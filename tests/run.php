@@ -165,9 +165,9 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
     assertSameValue('Callable signature models should support string casting.', '->{protected final demo(string, int = 0):?\Vendor\Thing}', (string) $callable);
     assertContainsText('Callable signature identity should carry structural information.', 'callable|dispatch:->|name:demo', $callable->toIdentityKey());
 
-    $property = new PropertySignature('counter', 'protected', true);
-    assertSameValue('Property signature models should render the current legacy format.', 'protected static $counter', $property->toLegacyString());
-    assertSameValue('Property signature identity should be structural.', 'property|name:counter|visibility:protected|static:1', $property->toIdentityKey());
+    $property = new PropertySignature('counter', 'protected', true, new TypeReference('int'));
+    assertSameValue('Property signature models should render the current legacy format.', 'protected static int $counter', $property->toLegacyString());
+    assertSameValue('Property signature identity should be structural.', 'property|name:counter|visibility:protected|static:1|type:int', $property->toIdentityKey());
 
     $constant = new ConstantSignature('STATUS', "'ok'");
     assertSameValue('Constant signature models should render the current legacy format.', "::STATUS = 'ok'", (string) $constant);
@@ -231,8 +231,8 @@ function testExplicitIdentityObjectsRenderStableKeys(): void {
     $callable = new CallableIdentity('->', 'demo', [$parameter], new TypeReference('?\\Vendor\\Thing'), ['protected'], true);
     assertContainsText('Callable identity objects should render the current key format.', 'callable|dispatch:->|name:demo|wrap:1|modifiers:protected|params:[param|variadic:1|type:string|default:0]|type:?\\Vendor\\Thing', $callable->toIdentityKey());
 
-    $property = new PropertyIdentity('counter', 'protected', true);
-    assertSameValue('Property identity objects should render the current key format.', 'property|name:counter|visibility:protected|static:1', $property->toIdentityKey());
+    $property = new PropertyIdentity('counter', 'protected', true, new TypeReference('int'));
+    assertSameValue('Property identity objects should render the current key format.', 'property|name:counter|visibility:protected|static:1|type:int', $property->toIdentityKey());
 
     $constant = new ConstantIdentity('STATUS', "'ok'");
     assertSameValue('Constant identity objects should render the current key format.', "constant|name:STATUS|value:'ok'", $constant->toIdentityKey());
@@ -792,6 +792,50 @@ PHP,
         '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other = null):?\Vendor\Package\Thing',
         '\Demo\build(?\Vendor\Package\Thing):?\Vendor\Package\Thing',
     ], $signatures);
+}
+
+function testSignatureSearchCapturesTypedProperties(): void {
+    $root = createRepository('typed-properties', [
+        'src/Model.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Model {
+    public int $count;
+    protected ?\DateTimeImmutable $seenAt;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Model.php']);
+    assertSameList('Typed properties should be part of the signature surface.', [
+        '\Demo\Model->__construct()',
+        '\Demo\Modelint $count',
+        '\Demo\Modelprotected ?\DateTimeImmutable $seenAt',
+    ], $signatures);
+}
+
+function testTypedPropertyChangesAffectDiffs(): void {
+    $root = createRepository('typed-property-diff', [
+        'src/Model.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Model {
+    public $count;
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Model.php', <<<'PHP'
+<?php
+namespace Demo;
+class Model {
+    public int $count;
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Adding a property type should affect the diff result.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testSignatureSearchPreservesProtectedAndStaticPropertyMarkers(): void {
