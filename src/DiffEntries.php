@@ -22,17 +22,17 @@ class DiffEntries {
     }
 
     /**
-     * @var SignatureBucket[]
+     * @var DiffSection
      */
     private $unchanged;
 
     /**
-     * @var SignatureBucket[]
+     * @var DiffSection
      */
     private $new;
 
     /**
-     * @var SignatureBucket[]
+     * @var DiffSection
      */
     private $removed;
 
@@ -42,29 +42,29 @@ class DiffEntries {
      * @param SignatureBucket[] $removed
      */
     public function __construct(array $unchanged, array $new, array $removed) {
-        $this->unchanged = $unchanged;
-        $this->new = $new;
-        $this->removed = $removed;
+        $this->unchanged = new DiffSection($unchanged);
+        $this->new = new DiffSection($new);
+        $this->removed = new DiffSection($removed);
     }
 
     /**
-     * @return SignatureBucket[]
+     * @return DiffSection
      */
-    public function getUnchanged(): array {
+    public function getUnchanged(): DiffSection {
         return $this->unchanged;
     }
 
     /**
-     * @return SignatureBucket[]
+     * @return DiffSection
      */
-    public function getNew(): array {
+    public function getNew(): DiffSection {
         return $this->new;
     }
 
     /**
-     * @return SignatureBucket[]
+     * @return DiffSection
      */
-    public function getRemoved(): array {
+    public function getRemoved(): DiffSection {
         return $this->removed;
     }
 
@@ -72,40 +72,29 @@ class DiffEntries {
      * @return string[]
      */
     public function getUnchangedDisplays(): array {
-        return $this->flattenDisplays($this->getUnchanged());
+        return $this->getUnchanged()->getDisplays();
     }
 
     /**
      * @return string[]
      */
     public function getNewDisplays(): array {
-        return $this->flattenDisplays($this->getNew());
+        return $this->getNew()->getDisplays();
     }
 
     /**
      * @return string[]
      */
     public function getRemovedDisplays(): array {
-        return $this->flattenDisplays($this->getRemoved());
+        return $this->getRemoved()->getDisplays();
     }
 
     public function hasNew(): bool {
-        return !empty($this->getNewDisplays());
+        return !$this->getNew()->isEmpty();
     }
 
     public function hasRemoved(): bool {
-        return !empty($this->getRemovedDisplays());
+        return !$this->getRemoved()->isEmpty();
     }
 
-    /**
-     * @param SignatureBucket[] $buckets
-     * @return string[]
-     */
-    public function flattenDisplays(array $buckets): array {
-        $displays = [];
-        foreach ($buckets as $bucket) {
-            $displays = array_merge($displays, $bucket->getDisplays());
-        }
-        return $displays;
-    }
 }

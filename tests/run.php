@@ -8,6 +8,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 
 use AutomaticSemver\CLI;
 use AutomaticSemver\DiffEntries;
+use AutomaticSemver\DiffSection;
 use AutomaticSemver\DiffReport;
 use AutomaticSemver\DiffReportRenderer;
 use AutomaticSemver\FileSearch\SystemFile;
@@ -376,7 +377,7 @@ function testDiffEntriesFlattenDisplays(): void {
         [new SignatureBucket(new ReportIdentity('removed'), ['removed-one'])]
     );
 
-    assertSameList('DiffEntries should flatten unchanged bucket displays.', ['same-one', 'same-two'], $entries->flattenDisplays($entries->getUnchanged()));
+    assertSameList('DiffEntries should flatten unchanged bucket displays.', ['same-one', 'same-two'], $entries->getUnchanged()->getDisplays());
     assertSameList('DiffEntries should flatten new bucket displays.', ['new-one'], $entries->getNewDisplays());
     assertSameList('DiffEntries should flatten removed bucket displays.', ['removed-one'], $entries->getRemovedDisplays());
     assertTrue('DiffEntries should detect new signatures.', $entries->hasNew());
@@ -389,6 +390,17 @@ function testDiffEntriesCanBeBuiltFromLegacyDisplays(): void {
     assertSameList('Legacy display construction should preserve unchanged displays.', ['same-one'], $entries->getUnchangedDisplays());
     assertSameList('Legacy display construction should preserve new displays.', ['new-one'], $entries->getNewDisplays());
     assertSameList('Legacy display construction should preserve removed displays.', ['removed-one'], $entries->getRemovedDisplays());
+}
+
+function testDiffSectionsFlattenBucketDisplays(): void {
+    $section = new DiffSection([
+        new SignatureBucket(new ReportIdentity('same'), ['same-one', 'same-two']),
+        new SignatureBucket(new ReportIdentity('same-extra'), ['same-three']),
+    ]);
+
+    assertSameList('Diff sections should flatten bucket display strings.', ['same-one', 'same-two', 'same-three'], $section->getDisplays());
+    assertTrue('Diff sections with displays should not be empty.', !$section->isEmpty());
+    assertTrue('Empty diff sections should report empty state.', (new DiffSection([]))->isEmpty());
 }
 
 function testDiffReportCanBeBuiltFromBuckets(): void {
@@ -1108,6 +1120,7 @@ testSignatureDiffSnapshotCanBeBuiltFromSignatures();
 testSignatureBucketsCanBeBuiltFromSignatures();
 testDiffEntriesFlattenDisplays();
 testDiffEntriesCanBeBuiltFromLegacyDisplays();
+testDiffSectionsFlattenBucketDisplays();
 testDiffReportCanBeBuiltFromBuckets();
 testIncrementDeciderUsesEntryState();
 testVersionIncrementBehavesLikeAValueObject();
