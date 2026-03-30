@@ -10,6 +10,8 @@ use AutomaticSemver\CLI;
 use AutomaticSemver\DiffEntries;
 use AutomaticSemver\DiffSection;
 use AutomaticSemver\DiffReport;
+use AutomaticSemver\DiffReportState;
+use AutomaticSemver\DiffReportStateFactory;
 use AutomaticSemver\DiffReportRenderer;
 use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\IncrementDecider;
@@ -418,6 +420,28 @@ function testDiffReportCanBeBuiltFromBuckets(): void {
     assertContainsText('Bucket-backed reports should still include removed signatures.', "	removedSignature", $report->toString(1));
 }
 
+function testDiffReportStateCarriesResolvedReportState(): void {
+    $range = new RevisionRange('from-tag', 'to-tag');
+    $entries = DiffEntries::fromLegacyDisplays(['sameSignature'], ['newSignature'], ['removedSignature']);
+    $state = new DiffReportState($range, $entries, VersionIncrement::major());
+
+    assertSameValue('Report state should expose the from label.', 'from-tag', $state->getRange()->getFrom());
+    assertSameList('Report state should expose unchanged sections.', ['sameSignature'], $state->getUnchangedSection()->getDisplays());
+    assertSameList('Report state should expose new sections.', ['newSignature'], $state->getNewSection()->getDisplays());
+    assertSameList('Report state should expose removed sections.', ['removedSignature'], $state->getRemovedSection()->getDisplays());
+    assertTrue('Report state should carry increment values.', $state->getIncrement()->equals(VersionIncrement::major()));
+}
+
+function testDiffReportStateFactoryResolvesIncrementValues(): void {
+    $factory = new DiffReportStateFactory();
+    $state = $factory->create(
+        new RevisionRange('from-tag', 'to-tag'),
+        DiffEntries::fromLegacyDisplays(['sameSignature'], ['newSignature'], [])
+    );
+
+    assertTrue('Report state factories should resolve increment values from entry state.', $state->getIncrement()->equals(VersionIncrement::minor()));
+}
+
 function testIncrementDeciderUsesEntryState(): void {
     $decider = new IncrementDecider();
 
@@ -437,6 +461,26 @@ function testDiffReportStillExposesLegacyIncrementStrings(): void {
     $report = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], []);
 
     assertSameValue('Diff reports should keep exposing the legacy increment string API for compatibility.', 'MINOR', $report->getIncrement());
+    assertTrue('Diff reports should expose their resolved state object.', $report->getState()->getIncrement()->equals(VersionIncrement::minor()));
+}
+
+function testDiffReportRendererCanRenderReportState(): void {
+    $renderer = new DiffReportRenderer();
+    $state = (new DiffReportStateFactory())->create(
+        new RevisionRange('from-tag', 'to-tag'),
+        new DiffEntries(
+            [new SignatureBucket(new ReportIdentity('same'), ['sameSignature'])],
+            [new SignatureBucket(new ReportIdentity('new'), ['newSignature'])],
+            [new SignatureBucket(new ReportIdentity('removed'), ['removedSignature'])]
+        )
+    );
+    $rendered = $renderer->renderState($state, 2);
+
+    assertContainsText('State-backed rendering should include the comparison header.', 'Comparing from-tag => to-tag', $rendered);
+    assertContainsText('State-backed rendering should include unchanged entries.', "	sameSignature", $rendered);
+    assertContainsText('State-backed rendering should include new entries.', "	newSignature", $rendered);
+    assertContainsText('State-backed rendering should include removed entries.', "	removedSignature", $rendered);
+    assertContainsText('State-backed rendering should append the resolved increment.', 'MAJOR', $rendered);
 }
 
 function testDiffReportRendererFormatsBucketEntries(): void {

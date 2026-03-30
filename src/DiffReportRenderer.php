@@ -8,38 +8,46 @@ namespace AutomaticSemver;
 
 class DiffReportRenderer {
 
-    private $incrementDecider;
-
-    public function __construct(?IncrementDecider $incrementDecider = null) {
-        $this->incrementDecider = $incrementDecider ?? new IncrementDecider();
+    /**
+     * @param 0|1|2 $level
+     */
+    public function render(DiffReport $report, int $level): string {
+        return $this->renderState($report->getState(), $level);
     }
 
     /**
      * @param 0|1|2 $level
      */
-    public function render(DiffReport $report, int $level): string {
+    public function renderState(DiffReportState $state, int $level): string {
         $str = '';
         if ($level >= 1) {
-            $str .= "Comparing " . $report->getRange()->toDisplayString() . "\n";
+            $str .= "Comparing " . $state->getRange()->toDisplayString() . "
+";
         }
         if ($level >= 2) {
-            $str .= "Unchanged:\n";
-            foreach ($report->getUnchangedSection()->getDisplays() as $unchangedSignature) {
-                $str .= "\t$unchangedSignature\n";
+            $str .= "Unchanged:
+";
+            foreach ($state->getUnchangedSection()->getDisplays() as $unchangedSignature) {
+                $str .= "	$unchangedSignature
+";
             }
         }
         if ($level >= 1) {
-            $str .= "New:\n";
-            foreach ($report->getNewSection()->getDisplays() as $newSignature) {
-                $str .= "\t$newSignature\n";
+            $str .= "New:
+";
+            foreach ($state->getNewSection()->getDisplays() as $newSignature) {
+                $str .= "	$newSignature
+";
             }
 
-            $str .= "Removed:\n";
-            foreach ($report->getRemovedSection()->getDisplays() as $removedSignature) {
-                $str .= "\t$removedSignature\n";
+            $str .= "Removed:
+";
+            foreach ($state->getRemovedSection()->getDisplays() as $removedSignature) {
+                $str .= "	$removedSignature
+";
             }
         }
 
-        return $str . $report->getIncrementValue()->toString();
+        return $str . $state->getIncrement()->toString();
     }
 }
