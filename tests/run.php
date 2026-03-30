@@ -479,6 +479,14 @@ function testDiffReportNamedConstructorsPreserveBehaviour(): void {
     assertContainsText('Legacy-display report construction should preserve rendering.', "	removedSignature", $legacyReport->toString(1));
 }
 
+function testDiffReportExposesSections(): void {
+    $report = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
+
+    assertSameList('Reports should expose unchanged sections.', ['sameSignature'], $report->getUnchangedSection()->getDisplays());
+    assertSameList('Reports should expose new sections.', ['newSignature'], $report->getNewSection()->getDisplays());
+    assertSameList('Reports should expose removed sections.', ['removedSignature'], $report->getRemovedSection()->getDisplays());
+}
+
 function testDiffReportRendererUsesReportAccessors(): void {
     $report = DiffReport::fromLegacyDisplays('from-tag', 'to-tag', ['sameSignature'], ['newSignature'], ['removedSignature']);
     $renderer = new DiffReportRenderer();
@@ -1128,6 +1136,7 @@ testDiffReportStillExposesLegacyIncrementStrings();
 testDiffReportRendererFormatsBucketEntries();
 testRevisionRangeCarriesReportLabels();
 testDiffReportNamedConstructorsPreserveBehaviour();
+testDiffReportExposesSections();
 testDiffReportRendererUsesReportAccessors();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();
