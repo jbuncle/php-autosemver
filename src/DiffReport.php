@@ -121,12 +121,16 @@ class DiffReport {
         return $this->entries->getRemovedDisplays();
     }
 
+    public function getIncrementValue(): VersionIncrement {
+        return $this->incrementDecider->decide($this->entries);
+    }
+
     /**
      *
      * @return "MAJOR"|"MINOR"|"PATCH"
      */
     public function getIncrement(): string {
-        return $this->incrementDecider->decide($this->entries);
+        return $this->getIncrementValue()->toString();
     }
 
 }

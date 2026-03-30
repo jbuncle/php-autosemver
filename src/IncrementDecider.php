@@ -8,18 +8,15 @@ namespace AutomaticSemver;
 
 class IncrementDecider {
 
-    /**
-     * @return "MAJOR"|"MINOR"|"PATCH"
-     */
-    public function decide(DiffEntries $entries): string {
+    public function decide(DiffEntries $entries): VersionIncrement {
         if ($entries->hasRemoved()) {
-            return "MAJOR";
+            return VersionIncrement::major();
         }
 
         if ($entries->hasNew()) {
-            return "MINOR";
+            return VersionIncrement::minor();
         }
 
-        return "PATCH";
+        return VersionIncrement::patch();
     }
 }

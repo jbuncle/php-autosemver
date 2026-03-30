@@ -12,6 +12,7 @@ use AutomaticSemver\DiffReport;
 use AutomaticSemver\DiffReportRenderer;
 use AutomaticSemver\FileSearch\SystemFile;
 use AutomaticSemver\IncrementDecider;
+use AutomaticSemver\VersionIncrement;
 use AutomaticSemver\ReportIdentity;
 use AutomaticSemver\SignatureBuckets;
 use AutomaticSemver\SignatureDiffSnapshot;
@@ -399,6 +400,7 @@ function testDiffReportCanBeBuiltFromBuckets(): void {
     $report = DiffReport::fromEntries('from-tag', 'to-tag', $entries);
 
     assertSameValue('Bucket-backed reports should still report MAJOR when removals exist.', 'MAJOR', $report->getIncrement());
+    assertTrue('Bucket-backed reports should expose increment value objects.', $report->getIncrementValue()->equals(VersionIncrement::major()));
     assertContainsText('Bucket-backed reports should still include unchanged signatures.', "	sameSignature", $report->toString(2));
     assertContainsText('Bucket-backed reports should still include new signatures.', "	newSignature", $report->toString(1));
     assertContainsText('Bucket-backed reports should still include removed signatures.', "	removedSignature", $report->toString(1));
@@ -407,9 +409,16 @@ function testDiffReportCanBeBuiltFromBuckets(): void {
 function testIncrementDeciderUsesEntryState(): void {
     $decider = new IncrementDecider();
 
-    assertSameValue('Removed entries should be MAJOR.', 'MAJOR', $decider->decide(DiffEntries::fromLegacyDisplays([], [], ['removed'])));
-    assertSameValue('New entries without removals should be MINOR.', 'MINOR', $decider->decide(DiffEntries::fromLegacyDisplays([], ['new'], [])));
-    assertSameValue('No changes should be PATCH.', 'PATCH', $decider->decide(DiffEntries::fromLegacyDisplays(['same'], [], [])));
+    assertSameValue('Removed entries should be MAJOR.', 'MAJOR', $decider->decide(DiffEntries::fromLegacyDisplays([], [], ['removed']))->toString());
+    assertSameValue('New entries without removals should be MINOR.', 'MINOR', $decider->decide(DiffEntries::fromLegacyDisplays([], ['new'], []))->toString());
+    assertSameValue('No changes should be PATCH.', 'PATCH', $decider->decide(DiffEntries::fromLegacyDisplays(['same'], [], []))->toString());
+}
+
+function testVersionIncrementBehavesLikeAValueObject(): void {
+    assertTrue('Major increments should compare equal by value.', VersionIncrement::major()->equals(VersionIncrement::major()));
+    assertTrue('Different increment values should not compare equal.', !VersionIncrement::major()->equals(VersionIncrement::minor()));
+    assertSameValue('Version increments should preserve the current string values.', 'PATCH', VersionIncrement::patch()->toString());
+    assertSameValue('Version increments should support string casting.', 'MINOR', (string) VersionIncrement::minor());
 }
 
 function testDiffReportRendererFormatsBucketEntries(): void {
@@ -1095,6 +1104,7 @@ testDiffEntriesFlattenDisplays();
 testDiffEntriesCanBeBuiltFromLegacyDisplays();
 testDiffReportCanBeBuiltFromBuckets();
 testIncrementDeciderUsesEntryState();
+testVersionIncrementBehavesLikeAValueObject();
 testDiffReportRendererFormatsBucketEntries();
 testRevisionRangeCarriesReportLabels();
 testDiffReportNamedConstructorsPreserveBehaviour();
