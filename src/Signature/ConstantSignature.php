@@ -18,13 +18,20 @@ class ConstantSignature implements LegacySignature {
      */
     private $value;
 
-    public function __construct(string $name, string $value) {
+    /**
+     * @var string
+     */
+    private $visibility;
+
+    public function __construct(string $name, string $value, string $visibility = 'public') {
         $this->name = $name;
         $this->value = $value;
+        $this->visibility = $visibility;
     }
 
     public function toLegacyString(): string {
-        return '::' . $this->name . ' = ' . $this->value;
+        $prefix = $this->visibility === 'public' ? '' : $this->visibility . ' ';
+        return $prefix . '::' . $this->name . ' = ' . $this->value;
     }
 
     public function toIdentityKey(): string {
@@ -40,7 +47,7 @@ class ConstantSignature implements LegacySignature {
     }
 
     public function getIdentity(): ConstantIdentity {
-        return new ConstantIdentity($this->name, $this->value);
+        return new ConstantIdentity($this->name, $this->value, $this->visibility);
     }
 
     public function __toString(): string {

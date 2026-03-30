@@ -18,15 +18,22 @@ class ConstantIdentity implements IdentityKey {
      */
     private $value;
 
-    public function __construct(string $name, string $value) {
+    /**
+     * @var string
+     */
+    private $visibility;
+
+    public function __construct(string $name, string $value, string $visibility = 'public') {
         $this->name = $name;
         $this->value = $value;
+        $this->visibility = $visibility;
     }
 
     public function toIdentityKey(): string {
         return implode('|', [
             'constant',
             'name:' . $this->name,
+            'visibility:' . $this->visibility,
             'value:' . $this->value,
         ]);
     }
@@ -34,6 +41,7 @@ class ConstantIdentity implements IdentityKey {
     public function equals(IdentityKey $other): bool {
         return $other instanceof self
             && $this->name === $other->name
+            && $this->visibility === $other->visibility
             && $this->value === $other->value;
     }
 }
