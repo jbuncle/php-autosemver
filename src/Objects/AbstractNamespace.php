@@ -63,6 +63,9 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
             'boolean',
             'array',
             'self',
+            'parent',
+            'iterable',
+            'object',
             'void',
         ];
         return in_array($type, $scalars);
