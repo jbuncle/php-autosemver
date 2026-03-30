@@ -25,6 +25,8 @@ use AutomaticSemver\SemVerDiff;
 use AutomaticSemver\Signature\CallableIdentity;
 use AutomaticSemver\Signature\CallableSignature;
 use AutomaticSemver\Signature\ConstantIdentity;
+use AutomaticSemver\Signature\ContractIdentity;
+use AutomaticSemver\Signature\ContractSignature;
 use AutomaticSemver\Signature\ConstantSignature;
 use AutomaticSemver\Signature\DefaultValue;
 use AutomaticSemver\Signature\ParameterIdentity;
@@ -206,6 +208,16 @@ function testPrefixedSignatureCanSeparateIdentityFromLegacyFormatting(): void {
     assertContainsText('Prefixed signatures should use the supplied semantic identity prefix.', 'prefixed|container|kind:class|name:Foo|abstract:1|final:0|callable|dispatch:->|name:demo', $signature->toIdentityKey());
 }
 
+function testContractSignatureModelsRenderCurrentStrings(): void {
+    $contract = new ContractSignature('implements', [
+        new TypeReference('\Vendor\FirstContract'),
+        new TypeReference('\Vendor\SecondContract'),
+    ]);
+
+    assertSameValue('Contract signature models should render the current legacy format.', ' implements \Vendor\FirstContract, \Vendor\SecondContract', $contract->toLegacyString());
+    assertContainsText('Contract signature models should render structural identities.', 'contract|kind:implements|types:[type:\Vendor\FirstContract,type:\Vendor\SecondContract]', $contract->toIdentityKey());
+}
+
 function testExplicitIdentityObjectsRenderStableKeys(): void {
     $namespace = new NamespaceIdentity('\\Demo\\');
     assertSameValue('Namespace identity objects should render the current key format.', 'namespace:\\Demo\\', $namespace->toIdentityKey());
@@ -224,6 +236,9 @@ function testExplicitIdentityObjectsRenderStableKeys(): void {
 
     $constant = new ConstantIdentity('STATUS', "'ok'");
     assertSameValue('Constant identity objects should render the current key format.', "constant|name:STATUS|value:'ok'", $constant->toIdentityKey());
+
+    $contract = new ContractIdentity('implements', [new TypeReference('\Vendor\Contract')]);
+    assertSameValue('Contract identity objects should render the current key format.', 'contract|kind:implements|types:[type:\Vendor\Contract]', $contract->toIdentityKey());
 }
 
 function testIdentityEqualityUsesSemanticObjectComparison(): void {
@@ -835,6 +850,63 @@ PHP,
         '\Demo\Bag->__construct()',
         '\Demo\Bag::collect(...string):array',
     ], $signatures);
+}
+
+function testSignatureSearchCapturesInterfaceInheritanceContracts(): void {
+    $root = createRepository('interface-extends', [
+        'src/Contracts.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\BaseContract;
+interface Contract extends BaseContract {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Contracts.php']);
+    assertSameList('Interface inheritance should be part of the signature surface.', [
+        '\Demo\Contract extends \Vendor\BaseContract',
+    ], $signatures);
+}
+
+function testSignatureSearchCapturesClassInheritanceContracts(): void {
+    $root = createRepository('class-contracts', [
+        'src/Contracts.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\BaseClass;
+use Vendor\PrimaryContract;
+use Vendor\SecondaryContract;
+class Worker extends BaseClass implements PrimaryContract, SecondaryContract {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Contracts.php']);
+    assertSameList('Class inheritance contracts should be part of the signature surface.', [
+        '\Demo\Worker->__construct()',
+        '\Demo\Worker extends \Vendor\BaseClass',
+        '\Demo\Worker implements \Vendor\PrimaryContract, \Vendor\SecondaryContract',
+    ], $signatures);
+}
+
+function testInterfaceInheritanceChangesAffectDiffs(): void {
+    $root = createRepository('interface-diff', [
+        'src/Contract.php' => <<<'PHP'
+<?php
+namespace Demo;
+interface Contract {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Contract.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\BaseContract;
+interface Contract extends BaseContract {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Adding an interface inheritance contract should affect the diff result.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testSignatureSearchCoversTraitsAndInterfaces(): void {
