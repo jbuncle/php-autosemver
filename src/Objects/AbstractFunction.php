@@ -124,7 +124,7 @@ abstract class AbstractFunction implements SignatureModelProvider {
             return '[' . implode(', ', $items) . ']';
         }
         if ($expression instanceof \PhpParser\Node\Expr\ConstFetch) {
-            return (string) $expression->name;
+            return $this->parentObject->getAbsoluteConstant($expression->name);
         }
         if ($expression instanceof \PhpParser\Node\Expr\ClassConstFetch) {
             return $this->renderDefaultClassName($expression->class) . '::' . $expression->name;

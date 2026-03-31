@@ -8,6 +8,7 @@ namespace AutomaticSemver\Objects;
 
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\NamespaceConstantSignature;
+use AutomaticSemver\TypeLookup;
 
 class NamespaceConstObject implements SignatureModelProvider {
 
@@ -16,8 +17,14 @@ class NamespaceConstObject implements SignatureModelProvider {
      */
     private $constObj;
 
-    public function __construct(\PhpParser\Node\Stmt\Const_ $constObj) {
+    /**
+     * @var TypeLookup
+     */
+    private $typeLookup;
+
+    public function __construct(\PhpParser\Node\Stmt\Const_ $constObj, TypeLookup $typeLookup) {
         $this->constObj = $constObj;
+        $this->typeLookup = $typeLookup;
     }
 
     public function getSignatures(): array {
@@ -53,7 +60,7 @@ class NamespaceConstObject implements SignatureModelProvider {
             return '[' . implode(', ', $items) . ']';
         }
         if ($value instanceof \PhpParser\Node\Expr\ConstFetch) {
-            return (string) $value->name;
+            return $this->typeLookup->getAbsoluteConstant($value->name);
         }
         if ($value instanceof \PhpParser\Node\Expr\ClassConstFetch) {
             return $this->renderClassName($value->class) . '::' . $value->name;
