@@ -33,6 +33,8 @@ use AutomaticSemver\Signature\ParameterIdentity;
 use AutomaticSemver\Signature\ContainerIdentity;
 use AutomaticSemver\Signature\IdentityKey;
 use AutomaticSemver\Signature\LegacySignature;
+use AutomaticSemver\Signature\NamespaceConstantIdentity;
+use AutomaticSemver\Signature\NamespaceConstantSignature;
 use AutomaticSemver\Signature\NamespaceIdentity;
 use AutomaticSemver\Signature\ParameterSignature;
 use AutomaticSemver\Signature\PropertyIdentity;
@@ -192,6 +194,16 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
     assertSameValue('Constant signature identity should be structural.', "constant|name:STATUS|visibility:protected|value:'ok'", $constant->toIdentityKey());
 }
 
+
+function testNamespaceConstantSignatureModelsRenderCurrentStrings(): void {
+    $signature = new NamespaceConstantSignature('STATUS', "'ok'");
+    assertSameValue('Namespace constant signatures should render the current legacy format.', "STATUS = 'ok'", $signature->toLegacyString());
+    assertSameValue('Namespace constant signatures should support string casting.', "STATUS = 'ok'", (string) $signature);
+
+    $identity = new NamespaceConstantIdentity('STATUS', "'ok'");
+    assertTrue('Namespace constant identities should compare equal when name and value match.', $identity->equals(new NamespaceConstantIdentity('STATUS', "'ok'")));
+    assertTrue('Namespace constant identities should detect value changes.', !$identity->equals(new NamespaceConstantIdentity('STATUS', "'no'")));
+}
 
 function testTraitUseSignatureModelsRenderCurrentStrings(): void {
     $use = TraitUseSignature::forUse([
@@ -851,6 +863,44 @@ PHP,
         '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other):?\Vendor\Package\Thing',
         '\Demo\build(?\Vendor\Package\Thing):?\Vendor\Package\Thing',
     ], $signatures);
+}
+
+function testSignatureSearchCapturesNamespaceConstants(): void {
+    $root = createRepository('namespace-constants', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+const STATUS = 'ok', DEFAULTS = ['enabled' => true];
+function run(): void {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Constants.php']);
+    assertSameList('Namespace constants should be part of the signature surface.', [
+        "\Demo\DEFAULTS = ['enabled' => true]",
+        "\Demo\STATUS = 'ok'",
+        '\Demo\run():void',
+    ], $signatures);
+}
+
+function testNamespaceConstantChangesAffectDiffs(): void {
+    $root = createRepository('namespace-constant-diff', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+const STATUS = 'ok';
+PHP,
+    ]);
+
+    writeFile($root . '/src/Constants.php', <<<'PHP'
+<?php
+namespace Demo;
+const STATUS = 'no';
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing a namespace constant should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testSignatureSearchResolvesGroupedTypeImports(): void {
@@ -1785,11 +1835,14 @@ testCliParsingAndDefaults();
 testCliPreloadFailuresAndUnknownOptions();
 
 testTraitUseSignatureModelsRenderCurrentStrings();
+testNamespaceConstantSignatureModelsRenderCurrentStrings();
 testConstantIdentityAndSignatureEqualityUsesVisibility();
 testContractSignatureModelsRenderCurrentStrings();
 testDiffReportStateCarriesResolvedReportState();
 testDiffReportStateFactoryResolvesIncrementValues();
 testDiffReportRendererCanRenderReportState();
+testSignatureSearchCapturesNamespaceConstants();
+testNamespaceConstantChangesAffectDiffs();
 testSignatureSearchResolvesNullableAndImportedTypes();
 testSignatureSearchResolvesGroupedTypeImports();
 testSignatureSearchIgnoresNonTypeGroupedImports();
