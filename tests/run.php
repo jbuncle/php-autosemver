@@ -38,6 +38,8 @@ use AutomaticSemver\Signature\ParameterSignature;
 use AutomaticSemver\Signature\PropertyIdentity;
 use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\PropertySignature;
+use AutomaticSemver\Signature\TraitUseIdentity;
+use AutomaticSemver\Signature\TraitUseSignature;
 use AutomaticSemver\Signature\TypeReference;
 use AutomaticSemver\SignatureSearch;
 
@@ -190,6 +192,28 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
     assertSameValue('Constant signature identity should be structural.', "constant|name:STATUS|visibility:protected|value:'ok'", $constant->toIdentityKey());
 }
 
+
+function testTraitUseSignatureModelsRenderCurrentStrings(): void {
+    $use = TraitUseSignature::forUse([
+        new TypeReference('\Vendor\SharedTrait'),
+        new TypeReference('\Vendor\ExtraTrait'),
+    ]);
+    assertSameValue('Trait use signatures should render the current legacy format.', ' use \Vendor\SharedTrait, \Vendor\ExtraTrait', $use->toLegacyString());
+
+    $precedence = TraitUseSignature::forPrecedence(
+        new TypeReference('\Vendor\SharedTrait'),
+        'boot',
+        [new TypeReference('\Vendor\ExtraTrait')]
+    );
+    assertSameValue('Trait precedence signatures should render the current legacy format.', ' use \Vendor\SharedTrait::boot insteadof \Vendor\ExtraTrait', $precedence->toLegacyString());
+
+    $alias = TraitUseSignature::forAlias(new TypeReference('\Vendor\SharedTrait'), 'boot', 'start', 'protected');
+    assertSameValue('Trait alias signatures should render the current legacy format.', ' use \Vendor\SharedTrait::boot as protected start', $alias->toLegacyString());
+
+    $identity = new TraitUseIdentity('alias', [new TypeReference('\Vendor\SharedTrait')], 'boot', 'start', 'protected');
+    assertTrue('Trait use identities should compare equal when semantic fields match.', $identity->equals(new TraitUseIdentity('alias', [new TypeReference('\Vendor\SharedTrait')], 'boot', 'start', 'protected')));
+    assertTrue('Trait use identities should detect alias target changes.', !$identity->equals(new TraitUseIdentity('alias', [new TypeReference('\Vendor\SharedTrait')], 'boot', 'run', 'protected')));
+}
 
 function testConstantIdentityAndSignatureEqualityUsesVisibility(): void {
     $left = new ConstantSignature('STATUS', "'ok'", 'protected');
@@ -1126,6 +1150,63 @@ PHP,
     ], $signatures);
 }
 
+function testSignatureSearchCapturesTraitUseAdaptations(): void {
+    $root = createRepository('trait-use-adaptations', [
+        'src/Traits.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait {}
+trait ExtraTrait {}
+class Worker {
+    use SharedTrait, ExtraTrait {
+        SharedTrait::boot insteadof ExtraTrait;
+        SharedTrait::boot as protected start;
+    }
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Traits.php']);
+    assertSameList('Trait use declarations and adaptations should be part of the signature surface.', [
+        '\Demo\Worker->__construct()',
+        '\Demo\Worker use \Demo\SharedTrait, \Demo\ExtraTrait',
+        '\Demo\Worker use \Demo\SharedTrait::boot as protected start',
+        '\Demo\Worker use \Demo\SharedTrait::boot insteadof \Demo\ExtraTrait',
+    ], $signatures);
+}
+
+function testTraitUseAdaptationChangesAffectDiffs(): void {
+    $root = createRepository('trait-use-adaptation-diff', [
+        'src/Traits.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait {}
+trait ExtraTrait {}
+class Worker {
+    use SharedTrait, ExtraTrait {
+        SharedTrait::boot insteadof ExtraTrait;
+    }
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Traits.php', <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait {}
+trait ExtraTrait {}
+class Worker {
+    use SharedTrait, ExtraTrait {
+        ExtraTrait::boot insteadof SharedTrait;
+    }
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing trait use adaptations should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchCapturesClassInheritanceContracts(): void {
     $root = createRepository('class-contracts', [
         'src/Contracts.php' => <<<'PHP'
@@ -1430,8 +1511,9 @@ PHP,
     ]);
 
     $signatures = getSignaturesForFiles($root, ['src/Traits.php']);
-    assertSameList('Trait use statements inside classes should remain ignored instead of inlining trait members.', [
+    assertSameList('Trait use statements inside classes should be surfaced without inlining trait members into the class.', [
         '\Demo\{Trait Helper}->assist()',
+        '\Demo\Worker use \Demo\Helper',
         '\Demo\Worker->__construct()',
         '\Demo\Worker->run()',
     ], $signatures);
@@ -1702,6 +1784,7 @@ testDiffReportFormatting();
 testCliParsingAndDefaults();
 testCliPreloadFailuresAndUnknownOptions();
 
+testTraitUseSignatureModelsRenderCurrentStrings();
 testConstantIdentityAndSignatureEqualityUsesVisibility();
 testContractSignatureModelsRenderCurrentStrings();
 testDiffReportStateCarriesResolvedReportState();
@@ -1719,6 +1802,8 @@ testSignatureSearchFormatsRicherDefaultExpressions();
 testDefaultExpressionRenderingAffectsDiffs();
 testSignatureSearchCapturesByReferenceCallables();
 testByReferenceChangesAffectDiffs();
+testSignatureSearchCapturesTraitUseAdaptations();
+testTraitUseAdaptationChangesAffectDiffs();
 testSignatureSearchCapturesInterfaceInheritanceContracts();
 testSignatureSearchCapturesClassInheritanceContracts();
 testInterfaceInheritanceChangesAffectDiffs();
