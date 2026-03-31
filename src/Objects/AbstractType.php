@@ -12,6 +12,7 @@ use AutomaticSemver\Signature\IdentityKey;
 use AutomaticSemver\Signature\LegacySignature;
 use AutomaticSemver\Signature\PrefixedSignature;
 use AutomaticSemver\Signature\RawSignature;
+use AutomaticSemver\Signature\TraitUseSignature;
 use AutomaticSemver\Signature\TypeReference;
 use Exception;
 
@@ -114,6 +115,10 @@ abstract class AbstractType
             );
         }
 
+        foreach ($this->getTraitUseSignatureModels() as $signature) {
+            $signatures[] = new PrefixedSignature($this->getPath(), $signature, $this->getIdentityPrefix());
+        }
+
         return $signatures;
     }
 
@@ -149,6 +154,67 @@ abstract class AbstractType
 
     protected function createTypeReferenceFromName(\PhpParser\Node\Name $name): TypeReference {
         return new TypeReference($this->namespaceObj->getAbsoluteType((string) $name));
+    }
+
+    /**
+     * @return TraitUseSignature[]
+     */
+    private function getTraitUseSignatureModels(): array {
+        $signatures = [];
+
+        foreach ($this->obj->stmts as $stmt) {
+            if (!$stmt instanceof \PhpParser\Node\Stmt\TraitUse) {
+                continue;
+            }
+
+            $traits = array_map(function (\PhpParser\Node\Name $name): TypeReference {
+                return $this->createTypeReferenceFromName($name);
+            }, $stmt->traits);
+            if (!empty($traits)) {
+                $signatures[] = TraitUseSignature::forUse($traits);
+            }
+
+            foreach ($stmt->adaptations as $adaptation) {
+                if ($adaptation instanceof \PhpParser\Node\Stmt\TraitUseAdaptation\Precedence) {
+                    $signatures[] = TraitUseSignature::forPrecedence(
+                        $this->createTypeReferenceFromName($adaptation->trait),
+                        (string) $adaptation->method,
+                        array_map(function (\PhpParser\Node\Name $name): TypeReference {
+                            return $this->createTypeReferenceFromName($name);
+                        }, $adaptation->insteadof)
+                    );
+                    continue;
+                }
+
+                if ($adaptation instanceof \PhpParser\Node\Stmt\TraitUseAdaptation\Alias) {
+                    $signatures[] = TraitUseSignature::forAlias(
+                        $adaptation->trait !== null ? $this->createTypeReferenceFromName($adaptation->trait) : null,
+                        (string) $adaptation->method,
+                        $adaptation->newName !== null ? (string) $adaptation->newName : null,
+                        $this->getTraitAliasModifier($adaptation->newModifier)
+                    );
+                }
+            }
+        }
+
+        return $signatures;
+    }
+
+    private function getTraitAliasModifier(?int $modifier): ?string {
+        if ($modifier === null) {
+            return null;
+        }
+        if (($modifier & \PhpParser\Node\Stmt\Class_::MODIFIER_PRIVATE) !== 0) {
+            return 'private';
+        }
+        if (($modifier & \PhpParser\Node\Stmt\Class_::MODIFIER_PROTECTED) !== 0) {
+            return 'protected';
+        }
+        if (($modifier & \PhpParser\Node\Stmt\Class_::MODIFIER_PUBLIC) !== 0) {
+            return 'public';
+        }
+
+        return null;
     }
 
     private function getTypeKind(): string {
