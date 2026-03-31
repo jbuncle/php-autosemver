@@ -157,7 +157,6 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
             \PhpParser\Node\Stmt\Switch_::class,
             \PhpParser\Node\Stmt\For_::class,
             \PhpParser\Node\Stmt\While_::class,
-            \PhpParser\Node\Stmt\Const_::class,
             \PhpParser\Node\Expr\UnaryMinus::class,
         ];
         return in_array($class, $ignoreables);
@@ -186,6 +185,8 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
             return new InterfaceObject($this, $stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Trait_) {
             return new TraitObject($this, $stmt);
+        } else if ($stmt instanceof \PhpParser\Node\Stmt\Const_) {
+            return new NamespaceConstObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
             if ($stmt->type === \PhpParser\Node\Stmt\Use_::TYPE_NORMAL) {
                 return new UseObject($stmt);

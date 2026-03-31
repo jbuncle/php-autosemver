@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+ini_set('memory_limit', '512M');
+
 if (!function_exists('phpdbg_start_oplog') || !function_exists('phpdbg_end_oplog') || !function_exists('phpdbg_get_executable')) {
     throw new RuntimeException('tests/coverage.php must be run under phpdbg.');
 }
