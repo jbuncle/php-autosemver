@@ -829,6 +829,40 @@ PHP,
     ], $signatures);
 }
 
+function testSignatureSearchResolvesGroupedTypeImports(): void {
+    $root = createRepository('grouped-type-resolution', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\{Thing as Alias, Other};
+function build(?Alias $item, Other $other = null): ?Alias {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Types.php']);
+    assertSameList('Grouped type imports should resolve to the current signature strings.', [
+        '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other = null):?\Vendor\Package\Thing',
+        '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other):?\Vendor\Package\Thing',
+        '\Demo\build(?\Vendor\Package\Thing):?\Vendor\Package\Thing',
+    ], $signatures);
+}
+
+function testSignatureSearchIgnoresNonTypeGroupedImports(): void {
+    $root = createRepository('grouped-mixed-imports', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\{Thing as Alias, function helper, const FLAG};
+function build(Alias $item): Alias {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Types.php']);
+    assertSameList('Grouped function and const imports should remain ignored for type resolution.', [
+        '\Demo\build(\Vendor\Package\Thing):\Vendor\Package\Thing',
+    ], $signatures);
+}
+
 function testSignatureSearchCapturesTypedProperties(): void {
     $root = createRepository('typed-properties', [
         'src/Model.php' => <<<'PHP'
@@ -1674,6 +1708,8 @@ testDiffReportStateCarriesResolvedReportState();
 testDiffReportStateFactoryResolvesIncrementValues();
 testDiffReportRendererCanRenderReportState();
 testSignatureSearchResolvesNullableAndImportedTypes();
+testSignatureSearchResolvesGroupedTypeImports();
+testSignatureSearchIgnoresNonTypeGroupedImports();
 testSignatureSearchCapturesTypedProperties();
 testTypedPropertyChangesAffectDiffs();
 testSignatureSearchPreservesProtectedAndStaticPropertyMarkers();
