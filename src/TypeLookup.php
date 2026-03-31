@@ -14,5 +14,7 @@ interface TypeLookup {
 
     public function getAbsoluteType($typeObj): string;
 
+    public function getAbsoluteConstant($constObj): string;
+
     public function getSignatures(): array;
 }

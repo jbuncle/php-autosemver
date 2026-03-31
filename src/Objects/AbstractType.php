@@ -259,7 +259,7 @@ abstract class AbstractType
         if ($stmt instanceof \PhpParser\Node\Stmt\Property) {
             return new ClassMemberObject($stmt, $this->namespaceObj);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
-            return new ClassConstObject($stmt);
+            return new ClassConstObject($stmt, $this->namespaceObj);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
             return new ClassMethodObject($this->namespaceObj, $stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Nop) {

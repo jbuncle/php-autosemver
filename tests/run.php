@@ -865,6 +865,71 @@ PHP,
     ], $signatures);
 }
 
+function testSignatureSearchResolvesImportedConstantsInDefaultsAndValues(): void {
+    $root = createRepository('const-import-resolution', [
+        'src/Config.php' => <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Config\DEFAULT_MODE;
+function build($mode = DEFAULT_MODE): void {}
+class Settings {
+    public const MODE = DEFAULT_MODE;
+}
+const CURRENT_MODE = DEFAULT_MODE;
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Config.php']);
+    assertSameList('Imported constants should resolve in default expressions and constant values.', [
+        '\Demo\CURRENT_MODE = \Vendor\Config\DEFAULT_MODE',
+        '\Demo\Settings::MODE = \Vendor\Config\DEFAULT_MODE',
+        '\Demo\Settings->__construct()',
+        '\Demo\build():void',
+        '\Demo\build(mixed = \Vendor\Config\DEFAULT_MODE):void',
+        '\Demo\build(mixed):void',
+    ], $signatures);
+}
+
+function testSignatureSearchResolvesGroupedConstImportsInDefaults(): void {
+    $root = createRepository('grouped-const-import-resolution', [
+        'src/Config.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config\{const DEFAULT_MODE};
+function build($mode = DEFAULT_MODE): void {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Config.php']);
+    assertSameList('Grouped constant imports should resolve in default expressions.', [
+        '\Demo\build():void',
+        '\Demo\build(mixed = \Vendor\Config\DEFAULT_MODE):void',
+        '\Demo\build(mixed):void',
+    ], $signatures);
+}
+
+function testImportedConstantChangesAffectDiffs(): void {
+    $root = createRepository('const-import-diff', [
+        'src/Config.php' => <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Config\DEFAULT_MODE;
+function build($mode = DEFAULT_MODE): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Config.php', <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Config\FALLBACK_MODE;
+function build($mode = FALLBACK_MODE): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an imported constant alias target should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchCapturesNamespaceConstants(): void {
     $root = createRepository('namespace-constants', [
         'src/Constants.php' => <<<'PHP'
@@ -1109,9 +1174,9 @@ PHP,
     $signatures = getSignaturesForFiles($root, ['src/Defaults.php']);
     assertSameList('Default values should retain the current string formatting rules.', [
         '\Demo\build():void',
-        '\Demo\build(array = [], mixed = SOME_CONST, int = -1):void',
+        '\Demo\build(array = [], mixed = \Demo\SOME_CONST, int = -1):void',
         '\Demo\build(array, mixed, int):void',
-        '\Demo\build(array = [], mixed = SOME_CONST):void',
+        '\Demo\build(array = [], mixed = \Demo\SOME_CONST):void',
         '\Demo\build(array, mixed):void',
         '\Demo\build(array = []):void',
         '\Demo\build(array):void',
@@ -1836,6 +1901,9 @@ testCliPreloadFailuresAndUnknownOptions();
 
 testTraitUseSignatureModelsRenderCurrentStrings();
 testNamespaceConstantSignatureModelsRenderCurrentStrings();
+testSignatureSearchResolvesImportedConstantsInDefaultsAndValues();
+testSignatureSearchResolvesGroupedConstImportsInDefaults();
+testImportedConstantChangesAffectDiffs();
 testConstantIdentityAndSignatureEqualityUsesVisibility();
 testContractSignatureModelsRenderCurrentStrings();
 testDiffReportStateCarriesResolvedReportState();

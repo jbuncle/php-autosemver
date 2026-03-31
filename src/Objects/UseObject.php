@@ -51,17 +51,26 @@ class UseObject implements Signatures {
         return '\\' . implode('\\', $useUse->name->parts);
     }
 
-    public function getAbsoluteType($type) {
+    private function getAbsoluteImportByType($name, int $type) {
         foreach ($this->use->uses as $useUse) {
-            if ($this->getUseType($useUse) !== \PhpParser\Node\Stmt\Use_::TYPE_NORMAL) {
+            if ($this->getUseType($useUse) !== $type) {
                 continue;
             }
 
-            $name = $this->getName($useUse);
-            if ($name === $type) {
+            if ($this->getName($useUse) === $name) {
                 return $this->getAbsoluteImportName($useUse);
             }
         }
+
+        return null;
+    }
+
+    public function getAbsoluteType($type) {
+        return $this->getAbsoluteImportByType($type, \PhpParser\Node\Stmt\Use_::TYPE_NORMAL);
+    }
+
+    public function getAbsoluteConstant($name) {
+        return $this->getAbsoluteImportByType($name, \PhpParser\Node\Stmt\Use_::TYPE_CONSTANT);
     }
 
 }

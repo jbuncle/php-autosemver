@@ -52,6 +52,10 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
         return $this->findFullyQualifiedType($type);
     }
 
+    private function isBuiltinConstant(string $constant): bool {
+        return in_array(strtolower($constant), ['true', 'false', 'null'], true);
+    }
+
     private function isTypeScalar(string $type): bool {
         $scalars = [
             'string',
@@ -83,6 +87,28 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
         }
 
         return $this->getPath() . $type;
+    }
+
+    public function getAbsoluteConstant($constObj): string {
+        if ($constObj instanceof \PhpParser\Node\Name\FullyQualified) {
+            return '\\' . ltrim((string) $constObj, '\\');
+        }
+
+        $constant = (string) $constObj;
+        if ($this->isBuiltinConstant($constant) || defined($constant)) {
+            return $constant;
+        }
+
+        foreach ($this->getObjects() as $object) {
+            if ($object instanceof UseObject) {
+                $absoluteConstant = $object->getAbsoluteConstant($constant);
+                if ($absoluteConstant !== null) {
+                    return $absoluteConstant;
+                }
+            }
+        }
+
+        return $this->getPath() . $constant;
     }
 
     public abstract function getPath(): string;
@@ -186,13 +212,9 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Trait_) {
             return new TraitObject($this, $stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Const_) {
-            return new NamespaceConstObject($stmt);
+            return new NamespaceConstObject($stmt, $this);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
-            if ($stmt->type === \PhpParser\Node\Stmt\Use_::TYPE_NORMAL) {
-                return new UseObject($stmt);
-            } else {
-                return null;
-            }
+            return new UseObject($stmt);
         } else if ($stmt instanceof \PhpParser\Node\Stmt\GroupUse) {
             return new UseObject($stmt);
         }
