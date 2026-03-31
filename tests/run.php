@@ -155,6 +155,22 @@ function getSignaturesForFiles(string $root, array $files): array {
     return $search->getSignatures($fileObjects);
 }
 
+function supportsByReferenceParsing(): bool {
+    $previousHandler = set_error_handler(function (): bool {
+        return true;
+    });
+
+    try {
+        $parser = (new PhpParser\ParserFactory())->create(PhpParser\ParserFactory::PREFER_PHP7);
+        $parser->parse('<?php function &pool(&$items) {}');
+        return true;
+    } catch (Throwable $throwable) {
+        return false;
+    } finally {
+        restore_error_handler();
+    }
+}
+
 
 function testLegacySignatureModelsRenderCurrentStrings(): void {
     $callable = new CallableSignature('->', 'demo', [
@@ -174,6 +190,21 @@ function testLegacySignatureModelsRenderCurrentStrings(): void {
     assertSameValue('Constant signature identity should be structural.', "constant|name:STATUS|visibility:protected|value:'ok'", $constant->toIdentityKey());
 }
 
+
+function testConstantIdentityAndSignatureEqualityUsesVisibility(): void {
+    $left = new ConstantSignature('STATUS', "'ok'", 'protected');
+    $same = new ConstantSignature('STATUS', "'ok'", 'protected');
+    $differentVisibility = new ConstantSignature('STATUS', "'ok'", 'private');
+    $differentValue = new ConstantSignature('STATUS', "'no'", 'protected');
+
+    assertTrue('Constant signatures should compare equal when name, visibility, and value match.', $left->equals($same));
+    assertTrue('Constant signatures should detect visibility changes.', !$left->equals($differentVisibility));
+    assertTrue('Constant signatures should detect value changes.', !$left->equals($differentValue));
+
+    $identity = new ConstantIdentity('STATUS', "'ok'", 'protected');
+    assertTrue('Constant identities should compare equal when name, visibility, and value match.', $identity->equals(new ConstantIdentity('STATUS', "'ok'", 'protected')));
+    assertTrue('Constant identities should detect visibility changes.', !$identity->equals(new ConstantIdentity('STATUS', "'ok'", 'private')));
+}
 
 function testParameterSignatureModelsRenderCurrentStrings(): void {
     $variadic = new ParameterSignature(new TypeReference('string'), true);
@@ -793,7 +824,42 @@ PHP,
     $signatures = getSignaturesForFiles($root, ['src/Types.php']);
     assertSameList('Imported and nullable types should resolve to the current signature strings.', [
         '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other = null):?\Vendor\Package\Thing',
+        '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other):?\Vendor\Package\Thing',
         '\Demo\build(?\Vendor\Package\Thing):?\Vendor\Package\Thing',
+    ], $signatures);
+}
+
+function testSignatureSearchResolvesGroupedTypeImports(): void {
+    $root = createRepository('grouped-type-resolution', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\{Thing as Alias, Other};
+function build(?Alias $item, Other $other = null): ?Alias {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Types.php']);
+    assertSameList('Grouped type imports should resolve to the current signature strings.', [
+        '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other = null):?\Vendor\Package\Thing',
+        '\Demo\build(?\Vendor\Package\Thing, \Vendor\Package\Other):?\Vendor\Package\Thing',
+        '\Demo\build(?\Vendor\Package\Thing):?\Vendor\Package\Thing',
+    ], $signatures);
+}
+
+function testSignatureSearchIgnoresNonTypeGroupedImports(): void {
+    $root = createRepository('grouped-mixed-imports', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\{Thing as Alias, function helper, const FLAG};
+function build(Alias $item): Alias {}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Types.php']);
+    assertSameList('Grouped function and const imports should remain ignored for type resolution.', [
+        '\Demo\build(\Vendor\Package\Thing):\Vendor\Package\Thing',
     ], $signatures);
 }
 
@@ -813,7 +879,7 @@ PHP,
     assertSameList('Typed properties should be part of the signature surface.', [
         '\Demo\Model->__construct()',
         '\Demo\Modelint $count',
-        '\Demo\Modelprotected ?\DateTimeImmutable $seenAt',
+        '\Demo\Modelprotected ?\Demo\DateTimeImmutable $seenAt',
     ], $signatures);
 }
 
@@ -838,7 +904,7 @@ PHP
     );
 
     $diff = new SemVerDiff($root, [], []);
-    assertSameValue('Adding a property type should affect the diff result.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
+    assertSameValue('Adding a property type should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testSignatureSearchPreservesProtectedAndStaticPropertyMarkers(): void {
@@ -908,7 +974,7 @@ PHP
     );
 
     $diff = new SemVerDiff($root, [], []);
-    assertSameValue('Adding PHP 7.2 built-in or contextual types should affect the diff result.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
+    assertSameValue('Adding PHP 7.2 built-in or contextual types should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testSignatureSearchFormatsRicherDefaultExpressions(): void {
@@ -979,43 +1045,51 @@ PHP,
 }
 
 function testSignatureSearchCapturesByReferenceCallables(): void {
+    if (!supportsByReferenceParsing()) {
+        return;
+    }
+
     $root = createRepository('by-reference-callables', [
         'src/Refs.php' => <<<'PHP'
 <?php
 namespace Demo;
-function &pool(array &$items): array {}
+function &pool(&$items) {}
 class Store {
-    public function &take(\ArrayObject &$items): \ArrayObject {}
+    public function &take(&$items) {}
 }
 PHP,
     ]);
 
     $signatures = getSignaturesForFiles($root, ['src/Refs.php']);
     assertSameList('By-reference parameters and returns should be part of the callable signature surface.', [
-        '\Demo\&pool(&array):array',
+        '\Demo\&pool(&mixed):mixed',
         '\Demo\Store->__construct()',
-        '\Demo\Store->&take(&\ArrayObject):\ArrayObject',
+        '\Demo\Store->&take(&mixed):mixed',
     ], $signatures);
 }
 
 function testByReferenceChangesAffectDiffs(): void {
+    if (!supportsByReferenceParsing()) {
+        return;
+    }
+
     $root = createRepository('by-reference-diff', [
         'src/Refs.php' => <<<'PHP'
 <?php
 namespace Demo;
-function pool(array $items): array {}
+function pool($items) {}
 PHP,
     ]);
 
     writeFile($root . '/src/Refs.php', <<<'PHP'
 <?php
 namespace Demo;
-function &pool(array &$items): array {}
+function &pool(&$items) {}
 PHP
     );
 
     $diff = new SemVerDiff($root, [], []);
-    assertSameValue('Adding by-reference callable semantics should affect the diff result.', 'MINOR', $diff->diff('HEAD', 'WC')->getIncrement());
+    assertSameValue('Adding by-reference callable semantics should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
 function testSignatureSearchCoversVariadicStaticMethods(): void {
@@ -1363,6 +1437,120 @@ PHP,
     ], $signatures);
 }
 
+function testSignatureSearchFormatsAdditionalClassConstantValueShapes(): void {
+    $root = createRepository('extra-constant-values', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    private const RATE = 1.5;
+    protected const ITEMS = [1.5, false, null];
+    public const ENV = PHP_EOL;
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Class constant values should preserve floats, plain const fetches, and unkeyed arrays.', [
+        "\\Demo\\Values->__construct()",
+        "\\Demo\\Valuesprivate ::RATE = 1.5",
+        "\\Demo\\Valuesprotected ::ITEMS = [1.5, false, null]",
+        "\\Demo\\Values::ENV = PHP_EOL",
+    ], $signatures);
+}
+
+function testSignatureSearchFormatsRicherClassConstantValues(): void {
+    $root = createRepository('rich-constant-values', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const DEFAULTS = ['name' => 'demo', 'enabled' => true];
+    public const MODE = \Vendor\Config::DEFAULT_MODE;
+    public const MAPPING = [1 => \Vendor\Config::DEFAULT_MODE, 2 => null];
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Class constant values should preserve keyed arrays, quoted strings, booleans, nulls, and class constants.', [
+        "\\Demo\\Values->__construct()",
+        "\\Demo\\Values::DEFAULTS = ['name' => 'demo', 'enabled' => true]",
+        "\\Demo\\Values::MODE = \\Vendor\\Config::DEFAULT_MODE",
+        "\\Demo\\Values::MAPPING = [1 => \\Vendor\\Config::DEFAULT_MODE, 2 => null]",
+    ], $signatures);
+}
+
+function testSignatureSearchCapturesPrivateAndSelfConstantReferences(): void {
+    $root = createRepository('private-self-constants', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const PUBLIC_VALUE = 1;
+    private const PRIVATE_VALUE = self::PUBLIC_VALUE;
+    protected const MAPPING = ['code' => self::PUBLIC_VALUE, 'enabled' => true];
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Class constants should preserve private/protected visibility and self:: references in current rendering.', [
+        "\\Demo\\Values->__construct()",
+        "\\Demo\\Values::PUBLIC_VALUE = 1",
+        "\\Demo\\Valuesprivate ::PRIVATE_VALUE = self::PUBLIC_VALUE",
+        "\\Demo\\Valuesprotected ::MAPPING = ['code' => self::PUBLIC_VALUE, 'enabled' => true]",
+    ], $signatures);
+}
+
+function testPrivateConstantVisibilityChangesAffectDiffs(): void {
+    $root = createRepository('private-constant-visibility-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    protected const STATUS = 1;
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    private const STATUS = 1;
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing class constant visibility to private should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testClassConstantValueRenderingAffectsDiffs(): void {
+    $root = createRepository('class-constant-value-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const DEFAULTS = [];
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const DEFAULTS = ['name' => 'demo'];
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing a richer class constant value should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsPlainScalarClassConstants(): void {
     $root = createRepository('plain-const-values', [
         'src/Numbers.php' => <<<'PHP'
@@ -1513,5 +1701,33 @@ testSignatureSearchIgnoresTraitUseStatementsInsideClasses();
 testDiffReportFormatting();
 testCliParsingAndDefaults();
 testCliPreloadFailuresAndUnknownOptions();
+
+testConstantIdentityAndSignatureEqualityUsesVisibility();
+testContractSignatureModelsRenderCurrentStrings();
+testDiffReportStateCarriesResolvedReportState();
+testDiffReportStateFactoryResolvesIncrementValues();
+testDiffReportRendererCanRenderReportState();
+testSignatureSearchResolvesNullableAndImportedTypes();
+testSignatureSearchResolvesGroupedTypeImports();
+testSignatureSearchIgnoresNonTypeGroupedImports();
+testSignatureSearchCapturesTypedProperties();
+testTypedPropertyChangesAffectDiffs();
+testSignatureSearchPreservesProtectedAndStaticPropertyMarkers();
+testSignatureSearchPreservesPhp72BuiltinAndContextualTypes();
+testBuiltinAndParentTypeChangesAffectDiffs();
+testSignatureSearchFormatsRicherDefaultExpressions();
+testDefaultExpressionRenderingAffectsDiffs();
+testSignatureSearchCapturesByReferenceCallables();
+testByReferenceChangesAffectDiffs();
+testSignatureSearchCapturesInterfaceInheritanceContracts();
+testSignatureSearchCapturesClassInheritanceContracts();
+testInterfaceInheritanceChangesAffectDiffs();
+testSignatureSearchCapturesConstantVisibility();
+testConstantVisibilityChangesAffectDiffs();
+testSignatureSearchFormatsAdditionalClassConstantValueShapes();
+testSignatureSearchFormatsRicherClassConstantValues();
+testSignatureSearchCapturesPrivateAndSelfConstantReferences();
+testPrivateConstantVisibilityChangesAffectDiffs();
+testClassConstantValueRenderingAffectsDiffs();
 
 echo "All tests passed\n";

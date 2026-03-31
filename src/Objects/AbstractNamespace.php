@@ -192,6 +192,8 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
             } else {
                 return null;
             }
+        } else if ($stmt instanceof \PhpParser\Node\Stmt\GroupUse) {
+            return new UseObject($stmt);
         }
         throw new Exception("Unsupported type " . get_class($stmt));
     }
