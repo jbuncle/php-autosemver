@@ -205,6 +205,22 @@ function testNamespaceConstantSignatureModelsRenderCurrentStrings(): void {
     assertTrue('Namespace constant identities should detect value changes.', !$identity->equals(new NamespaceConstantIdentity('STATUS', "'no'")));
 }
 
+function testTraitUseSignatureModelsCoverUnqualifiedAliasAndMultiplePrecedenceTargets(): void {
+    $alias = TraitUseSignature::forAlias(null, 'boot', null, 'private');
+    assertSameValue('Trait alias signatures should support unqualified visibility-only aliases.', ' use boot as private', $alias->toLegacyString());
+
+    $precedence = TraitUseSignature::forPrecedence(
+        new TypeReference('\Vendor\SharedTrait'),
+        'boot',
+        [new TypeReference('\Vendor\FirstFallback'), new TypeReference('\Vendor\SecondFallback')]
+    );
+    assertSameValue('Trait precedence signatures should support multiple insteadof targets.', ' use \Vendor\SharedTrait::boot insteadof \Vendor\FirstFallback, \Vendor\SecondFallback', $precedence->toLegacyString());
+
+    $identity = new TraitUseIdentity('alias', [], 'boot', null, 'private');
+    assertTrue('Unqualified trait alias identities should compare equal when semantic fields match.', $identity->equals(new TraitUseIdentity('alias', [], 'boot', null, 'private')));
+    assertTrue('Unqualified trait alias identities should detect modifier changes.', !$identity->equals(new TraitUseIdentity('alias', [], 'boot', null, 'protected')));
+}
+
 function testTraitUseSignatureModelsRenderCurrentStrings(): void {
     $use = TraitUseSignature::forUse([
         new TypeReference('\Vendor\SharedTrait'),
@@ -1383,6 +1399,69 @@ PHP,
     ], $signatures);
 }
 
+function testSignatureSearchCapturesTraitAliasEdgeCases(): void {
+    $root = createRepository('trait-alias-edge-cases', [
+        'src/Traits.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait {
+    public function boot() {}
+}
+trait FirstFallback {}
+trait SecondFallback {}
+class Worker {
+    use SharedTrait, FirstFallback, SecondFallback {
+        SharedTrait::boot insteadof FirstFallback, SecondFallback;
+        boot as private;
+    }
+}
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Traits.php']);
+    assertSameList('Trait alias edge cases should be part of the signature surface.', [
+        '\Demo\Worker use \Demo\SharedTrait, \Demo\FirstFallback, \Demo\SecondFallback',
+        '\Demo\Worker use \Demo\SharedTrait::boot insteadof \Demo\FirstFallback, \Demo\SecondFallback',
+        '\Demo\Worker use boot as private',
+        '\Demo\Worker->__construct()',
+        '\Demo\{Trait SharedTrait}->boot()',
+    ], $signatures);
+}
+
+function testTraitAliasVisibilityChangesAffectDiffs(): void {
+    $root = createRepository('trait-alias-visibility-diff', [
+        'src/Traits.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait {
+    public function boot() {}
+}
+class Worker {
+    use SharedTrait {
+        boot as protected;
+    }
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Traits.php', <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait {
+    public function boot() {}
+}
+class Worker {
+    use SharedTrait {
+        boot as private;
+    }
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing trait alias visibility should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testTraitUseAdaptationChangesAffectDiffs(): void {
     $root = createRepository('trait-use-adaptation-diff', [
         'src/Traits.php' => <<<'PHP'
@@ -1993,6 +2072,7 @@ testCliParsingAndDefaults();
 testCliPreloadFailuresAndUnknownOptions();
 
 testTraitUseSignatureModelsRenderCurrentStrings();
+testTraitUseSignatureModelsCoverUnqualifiedAliasAndMultiplePrecedenceTargets();
 testNamespaceConstantSignatureModelsRenderCurrentStrings();
 testSignatureSearchResolvesImportedClassConstantFetchesInValues();
 testClassConstantFetchAliasChangesAffectDiffs();
@@ -2021,6 +2101,8 @@ testDefaultExpressionRenderingAffectsDiffs();
 testSignatureSearchCapturesByReferenceCallables();
 testByReferenceChangesAffectDiffs();
 testSignatureSearchCapturesTraitUseAdaptations();
+testSignatureSearchCapturesTraitAliasEdgeCases();
+testTraitAliasVisibilityChangesAffectDiffs();
 testTraitUseAdaptationChangesAffectDiffs();
 testSignatureSearchCapturesInterfaceInheritanceContracts();
 testSignatureSearchCapturesClassInheritanceContracts();
