@@ -688,6 +688,105 @@ function testGitIgnoreInlineCommentsAreIgnored(): void {
     assertSameValue('Ignored files should not affect the increment.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+function testGroupedAndUngroupedTypeImportsRemainEquivalent(): void {
+    $root = createRepository('grouped-import-equivalence', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Thing as Alias;
+use Vendor\Package\Other;
+function build(?Alias $item, Other $other = null): ?Alias {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Types.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\{Thing as Alias, Other};
+function build(?Alias $item, Other $other = null): ?Alias {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Grouped and ungrouped type imports with the same resolved targets should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testGroupedAndUngroupedConstImportsRemainEquivalent(): void {
+    $root = createRepository('grouped-const-import-equivalence', [
+        'src/Config.php' => <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Config\DEFAULT_MODE;
+function build($mode = DEFAULT_MODE): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Config.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config\{const DEFAULT_MODE};
+function build($mode = DEFAULT_MODE): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Grouped and ungrouped const imports with the same resolved targets should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testTraitAliasFormattingEquivalenceIsPatch(): void {
+    $root = createRepository('trait-alias-equivalence', [
+        'src/Traits.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait {
+    public function boot() {}
+}
+class Worker {
+    use SharedTrait {
+        SharedTrait::boot as private;
+    }
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Traits.php', <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait {
+    public function boot() {}
+}
+class Worker {
+    use SharedTrait {
+        boot as private;
+    }
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Qualified and unqualified trait aliases with the same semantic meaning should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testNamespaceConstantOrderingDoesNotBumpVersion(): void {
+    $root = createRepository('namespace-constant-ordering', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+const STATUS = 'ok', MODE = 'safe';
+PHP,
+    ]);
+
+    writeFile($root . '/src/Constants.php', <<<'PHP'
+<?php
+namespace Demo;
+const MODE = 'safe', STATUS = 'ok';
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Reordering namespace constants without changing values should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testIncludePathsRestrictTheSurface(): void {
     $root = createRepository('include-paths', [
         'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function stableMethod() {} }\n",
@@ -2041,6 +2140,10 @@ testDiffReportExposesSections();
 testDiffReportRendererUsesReportAccessors();
 testSignatureIdentityKeepsCurrentDiffBehaviour();
 testExcludePathsAreHonoured();
+testGroupedAndUngroupedTypeImportsRemainEquivalent();
+testGroupedAndUngroupedConstImportsRemainEquivalent();
+testTraitAliasFormattingEquivalenceIsPatch();
+testNamespaceConstantOrderingDoesNotBumpVersion();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();
 testIncludePathsRestrictTheSurface();
