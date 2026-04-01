@@ -188,7 +188,7 @@ abstract class AbstractType
 
                 if ($adaptation instanceof \PhpParser\Node\Stmt\TraitUseAdaptation\Alias) {
                     $signatures[] = TraitUseSignature::forAlias(
-                        $adaptation->trait !== null ? $this->createTypeReferenceFromName($adaptation->trait) : null,
+                        $this->getTraitAliasTarget($adaptation, $traits),
                         (string) $adaptation->method,
                         $adaptation->newName !== null ? (string) $adaptation->newName : null,
                         $this->getTraitAliasModifier($adaptation->newModifier)
@@ -198,6 +198,22 @@ abstract class AbstractType
         }
 
         return $signatures;
+    }
+
+
+    /**
+     * @param TypeReference[] $traits
+     */
+    private function getTraitAliasTarget(\PhpParser\Node\Stmt\TraitUseAdaptation\Alias $adaptation, array $traits): ?TypeReference {
+        if ($adaptation->trait !== null) {
+            return $this->createTypeReferenceFromName($adaptation->trait);
+        }
+
+        if (count($traits) === 1) {
+            return $traits[0];
+        }
+
+        return null;
     }
 
     private function getTraitAliasModifier(?int $modifier): ?string {
