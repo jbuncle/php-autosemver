@@ -89,6 +89,6 @@ class NamespaceConstObject implements SignatureModelProvider {
             return '\\' . ltrim((string) $class, '\\');
         }
 
-        return (string) $class;
+        return $this->typeLookup->getAbsoluteType($class);
     }
 }

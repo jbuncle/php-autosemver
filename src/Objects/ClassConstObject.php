@@ -109,6 +109,9 @@ class ClassConstObject implements SignatureModelProvider {
         if ($class instanceof \PhpParser\Node\Name\FullyQualified) {
             return '\\' . ltrim((string) $class, '\\');
         }
+        if ($this->typeLookup !== null) {
+            return $this->typeLookup->getAbsoluteType($class);
+        }
 
         return (string) $class;
     }

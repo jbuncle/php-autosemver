@@ -865,6 +865,53 @@ PHP,
     ], $signatures);
 }
 
+function testSignatureSearchResolvesImportedClassConstantFetchesInValues(): void {
+    $root = createRepository('class-const-fetch-resolution', [
+        'src/Config.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Alias;
+class Settings {
+    public const MODE = Alias::DEFAULT_MODE;
+}
+const CURRENT_MODE = Alias::DEFAULT_MODE;
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Config.php']);
+    assertSameList('Imported class aliases should resolve in class constant fetch values.', [
+        '\Demo\CURRENT_MODE = \Vendor\Config::DEFAULT_MODE',
+        '\Demo\Settings->__construct()',
+        '\Demo\Settings::MODE = \Vendor\Config::DEFAULT_MODE',
+    ], $signatures);
+}
+
+function testClassConstantFetchAliasChangesAffectDiffs(): void {
+    $root = createRepository('class-const-fetch-alias-diff', [
+        'src/Config.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Alias;
+class Settings {
+    public const MODE = Alias::DEFAULT_MODE;
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Config.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Fallback as Alias;
+class Settings {
+    public const MODE = Alias::DEFAULT_MODE;
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an imported class alias used in a class constant fetch should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchResolvesImportedConstantsInDefaultsAndValues(): void {
     $root = createRepository('const-import-resolution', [
         'src/Config.php' => <<<'PHP'
@@ -1947,6 +1994,8 @@ testCliPreloadFailuresAndUnknownOptions();
 
 testTraitUseSignatureModelsRenderCurrentStrings();
 testNamespaceConstantSignatureModelsRenderCurrentStrings();
+testSignatureSearchResolvesImportedClassConstantFetchesInValues();
+testClassConstantFetchAliasChangesAffectDiffs();
 testSignatureSearchResolvesImportedConstantsInDefaultsAndValues();
 testSignatureSearchFormatsMagicConstants();
 testMagicConstantChangesAffectDiffs();
