@@ -1011,6 +1011,71 @@ PHP,
     ], $signatures);
 }
 
+function testSignatureSearchFormatsRicherNamespaceConstantValues(): void {
+    $root = createRepository('namespace-constant-values', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Alias;
+use const Vendor\Flags\ENABLED;
+const STATUS = Alias::DEFAULT_MODE,
+    SETTINGS = ['enabled' => ENABLED, 'here' => __DIR__],
+    CURRENT_CLASS = __CLASS__;
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Constants.php']);
+    assertSameList('Namespace constants should preserve imported class constant fetches, imported constants, arrays, and magic constants.', [
+        '\Demo\CURRENT_CLASS = __CLASS__',
+        "\Demo\SETTINGS = ['enabled' => \Vendor\Flags\ENABLED, 'here' => __DIR__]",
+        '\Demo\STATUS = \Vendor\Config::DEFAULT_MODE',
+    ], $signatures);
+}
+
+function testNamespaceConstantAliasTargetChangesAffectDiffs(): void {
+    $root = createRepository('namespace-constant-alias-diff', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Alias;
+const STATUS = Alias::DEFAULT_MODE;
+PHP,
+    ]);
+
+    writeFile($root . '/src/Constants.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Fallback as Alias;
+const STATUS = Alias::DEFAULT_MODE;
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an imported class alias used in a namespace constant should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testNamespaceConstantImportedConstantTargetChangesAffectDiffs(): void {
+    $root = createRepository('namespace-constant-import-diff', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Flags\ENABLED;
+const STATUS = ENABLED;
+PHP,
+    ]);
+
+    writeFile($root . '/src/Constants.php', <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Flags\DISABLED;
+const STATUS = DISABLED;
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an imported constant used in a namespace constant should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testNamespaceConstantChangesAffectDiffs(): void {
     $root = createRepository('namespace-constant-diff', [
         'src/Constants.php' => <<<'PHP'
@@ -2074,6 +2139,9 @@ testCliPreloadFailuresAndUnknownOptions();
 testTraitUseSignatureModelsRenderCurrentStrings();
 testTraitUseSignatureModelsCoverUnqualifiedAliasAndMultiplePrecedenceTargets();
 testNamespaceConstantSignatureModelsRenderCurrentStrings();
+testSignatureSearchFormatsRicherNamespaceConstantValues();
+testNamespaceConstantAliasTargetChangesAffectDiffs();
+testNamespaceConstantImportedConstantTargetChangesAffectDiffs();
 testSignatureSearchResolvesImportedClassConstantFetchesInValues();
 testClassConstantFetchAliasChangesAffectDiffs();
 testSignatureSearchResolvesImportedConstantsInDefaultsAndValues();
