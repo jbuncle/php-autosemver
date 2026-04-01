@@ -59,6 +59,9 @@ class NamespaceConstObject implements SignatureModelProvider {
 
             return '[' . implode(', ', $items) . ']';
         }
+        if ($value instanceof \PhpParser\Node\Scalar\MagicConst) {
+            return $value->getName();
+        }
         if ($value instanceof \PhpParser\Node\Expr\ConstFetch) {
             return $this->typeLookup->getAbsoluteConstant($value->name);
         }

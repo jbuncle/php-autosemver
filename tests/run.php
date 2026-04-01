@@ -1116,6 +1116,52 @@ PHP
     assertSameValue('Adding PHP 7.2 built-in or contextual types should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+function testSignatureSearchFormatsMagicConstants(): void {
+    $root = createRepository('magic-constant-rendering', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+function build($dir = __DIR__, $file = __FILE__): void {}
+class Info {
+    public const SELF_CLASS = __CLASS__;
+}
+const CURRENT_NAMESPACE = __NAMESPACE__;
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Magic constants should be preserved explicitly in signatures.', [
+        '\Demo\CURRENT_NAMESPACE = __NAMESPACE__',
+        '\Demo\Info->__construct()',
+        '\Demo\Info::SELF_CLASS = __CLASS__',
+        '\Demo\build():void',
+        '\Demo\build(mixed = __DIR__):void',
+        '\Demo\build(mixed = __DIR__, mixed = __FILE__):void',
+        '\Demo\build(mixed, mixed):void',
+        '\Demo\build(mixed):void',
+    ], $signatures);
+}
+
+function testMagicConstantChangesAffectDiffs(): void {
+    $root = createRepository('magic-constant-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+function build($value = __DIR__): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+function build($value = __FILE__): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing a magic constant in a signature should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsRicherDefaultExpressions(): void {
     $root = createRepository('default-expression-shapes', [
         'src/Defaults.php' => <<<'PHP'
@@ -1902,6 +1948,8 @@ testCliPreloadFailuresAndUnknownOptions();
 testTraitUseSignatureModelsRenderCurrentStrings();
 testNamespaceConstantSignatureModelsRenderCurrentStrings();
 testSignatureSearchResolvesImportedConstantsInDefaultsAndValues();
+testSignatureSearchFormatsMagicConstants();
+testMagicConstantChangesAffectDiffs();
 testSignatureSearchResolvesGroupedConstImportsInDefaults();
 testImportedConstantChangesAffectDiffs();
 testConstantIdentityAndSignatureEqualityUsesVisibility();
