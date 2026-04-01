@@ -76,6 +76,9 @@ class ClassConstObject implements SignatureModelProvider {
 
             return '[' . implode(', ', $items) . ']';
         }
+        if ($value instanceof \PhpParser\Node\Scalar\MagicConst) {
+            return $value->getName();
+        }
         if ($value instanceof \PhpParser\Node\Expr\ConstFetch) {
             if ($this->typeLookup !== null) {
                 return $this->typeLookup->getAbsoluteConstant($value->name);
