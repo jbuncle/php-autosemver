@@ -787,6 +787,89 @@ PHP
     assertSameValue('Reordering namespace constants without changing values should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testImplementedContractOrderingDoesNotBumpVersion(): void {
+    $root = createRepository('implements-ordering', [
+        'src/Worker.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\FirstContract;
+use Vendor\Contract\SecondContract;
+class Worker implements FirstContract, SecondContract {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Worker.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\FirstContract;
+use Vendor\Contract\SecondContract;
+class Worker implements SecondContract, FirstContract {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Reordering implemented contracts without changing the set should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testExtendedInterfaceOrderingDoesNotBumpVersion(): void {
+    $root = createRepository('interface-extends-ordering', [
+        'src/Contract.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\FirstBase;
+use Vendor\Contract\SecondBase;
+interface Contract extends FirstBase, SecondBase {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Contract.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\FirstBase;
+use Vendor\Contract\SecondBase;
+interface Contract extends SecondBase, FirstBase {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Reordering extended interfaces without changing the set should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testTraitPrecedenceOrderingDoesNotBumpVersion(): void {
+    $root = createRepository('trait-precedence-ordering', [
+        'src/Worker.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait { public function boot() {} }
+trait FirstFallback { public function boot() {} }
+trait SecondFallback { public function boot() {} }
+class Worker {
+    use SharedTrait, FirstFallback, SecondFallback {
+        SharedTrait::boot insteadof FirstFallback, SecondFallback;
+    }
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Worker.php', <<<'PHP'
+<?php
+namespace Demo;
+trait SharedTrait { public function boot() {} }
+trait FirstFallback { public function boot() {} }
+trait SecondFallback { public function boot() {} }
+class Worker {
+    use SharedTrait, FirstFallback, SecondFallback {
+        SharedTrait::boot insteadof SecondFallback, FirstFallback;
+    }
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Reordering insteadof fallback traits without changing the set should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testIncludePathsRestrictTheSurface(): void {
     $root = createRepository('include-paths', [
         'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function stableMethod() {} }\n",
@@ -2209,6 +2292,9 @@ testGroupedAndUngroupedTypeImportsRemainEquivalent();
 testGroupedAndUngroupedConstImportsRemainEquivalent();
 testTraitAliasFormattingEquivalenceIsPatch();
 testNamespaceConstantOrderingDoesNotBumpVersion();
+testImplementedContractOrderingDoesNotBumpVersion();
+testExtendedInterfaceOrderingDoesNotBumpVersion();
+testTraitPrecedenceOrderingDoesNotBumpVersion();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();
 testIncludePathsRestrictTheSurface();

@@ -32,7 +32,7 @@ class ContractIdentity implements IdentityKey {
             'kind:' . $this->kind,
             'types:[' . implode(',', array_map(function (IdentityKey $type): string {
                 return $type->toIdentityKey();
-            }, $this->types)) . ']',
+            }, $this->getNormalisedTypes())) . ']',
         ]);
     }
 
@@ -41,12 +41,26 @@ class ContractIdentity implements IdentityKey {
             return false;
         }
 
-        foreach ($this->types as $index => $type) {
-            if (!$type->equals($other->types[$index])) {
+        $left = $this->getNormalisedTypes();
+        $right = $other->getNormalisedTypes();
+        foreach ($left as $index => $type) {
+            if (!$type->equals($right[$index])) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * @return IdentityKey[]
+     */
+    private function getNormalisedTypes(): array {
+        $types = $this->types;
+        usort($types, function (IdentityKey $left, IdentityKey $right): int {
+            return strcmp($left->toIdentityKey(), $right->toIdentityKey());
+        });
+
+        return $types;
     }
 }

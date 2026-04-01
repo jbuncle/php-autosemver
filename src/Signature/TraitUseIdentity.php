@@ -50,7 +50,7 @@ class TraitUseIdentity implements IdentityKey {
             'kind:' . $this->kind,
             'traits:[' . implode(',', array_map(function (IdentityKey $trait): string {
                 return $trait->toIdentityKey();
-            }, $this->traits)) . ']',
+            }, $this->getNormalisedTraits())) . ']',
             'method:' . ($this->method ?? ''),
             'newName:' . ($this->newName ?? ''),
             'newModifier:' . ($this->newModifier ?? ''),
@@ -67,12 +67,31 @@ class TraitUseIdentity implements IdentityKey {
             return false;
         }
 
-        foreach ($this->traits as $index => $trait) {
-            if (!$trait->equals($other->traits[$index])) {
+        $left = $this->getNormalisedTraits();
+        $right = $other->getNormalisedTraits();
+        foreach ($left as $index => $trait) {
+            if (!$trait->equals($right[$index])) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * @return IdentityKey[]
+     */
+    private function getNormalisedTraits(): array {
+        if ($this->kind !== 'precedence' || count($this->traits) <= 2) {
+            return $this->traits;
+        }
+
+        $selected = $this->traits[0];
+        $insteadOfTraits = array_slice($this->traits, 1);
+        usort($insteadOfTraits, function (IdentityKey $left, IdentityKey $right): int {
+            return strcmp($left->toIdentityKey(), $right->toIdentityKey());
+        });
+
+        return array_merge([$selected], $insteadOfTraits);
     }
 }
