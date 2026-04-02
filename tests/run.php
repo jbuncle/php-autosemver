@@ -870,6 +870,95 @@ PHP
     assertSameValue('Reordering insteadof fallback traits without changing the set should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testTypeAliasRenamingDoesNotBumpVersion(): void {
+    $root = createRepository('type-alias-rename-equivalence', [
+        'src/Types.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Thing as Alias;
+function build(Alias $item): Alias {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Types.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Package\Thing as RenamedAlias;
+function build(RenamedAlias $item): RenamedAlias {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Renaming a type alias without changing its resolved target should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testConstantAliasRenamingDoesNotBumpVersion(): void {
+    $root = createRepository('constant-alias-rename-equivalence', [
+        'src/Config.php' => <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Config\DEFAULT_MODE as MODE;
+function build($mode = MODE): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Config.php', <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Config\DEFAULT_MODE as DEFAULT_SETTING;
+function build($mode = DEFAULT_SETTING): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Renaming a constant alias without changing its resolved target should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testNamespaceConstantAliasRenamingDoesNotBumpVersion(): void {
+    $root = createRepository('namespace-constant-alias-rename-equivalence', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Alias;
+const STATUS = Alias::DEFAULT_MODE;
+PHP,
+    ]);
+
+    writeFile($root . '/src/Constants.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as ConfigAlias;
+const STATUS = ConfigAlias::DEFAULT_MODE;
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Renaming a class alias used in a namespace constant without changing its target should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testImplementedContractAliasRenamingDoesNotBumpVersion(): void {
+    $root = createRepository('implements-alias-rename-equivalence', [
+        'src/Worker.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\PrimaryContract as ContractAlias;
+class Worker implements ContractAlias {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Worker.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\PrimaryContract as RenamedContract;
+class Worker implements RenamedContract {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Renaming an implemented contract alias without changing its target should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testIncludePathsRestrictTheSurface(): void {
     $root = createRepository('include-paths', [
         'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function stableMethod() {} }\n",
@@ -2295,6 +2384,10 @@ testNamespaceConstantOrderingDoesNotBumpVersion();
 testImplementedContractOrderingDoesNotBumpVersion();
 testExtendedInterfaceOrderingDoesNotBumpVersion();
 testTraitPrecedenceOrderingDoesNotBumpVersion();
+testTypeAliasRenamingDoesNotBumpVersion();
+testConstantAliasRenamingDoesNotBumpVersion();
+testNamespaceConstantAliasRenamingDoesNotBumpVersion();
+testImplementedContractAliasRenamingDoesNotBumpVersion();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();
 testIncludePathsRestrictTheSurface();
