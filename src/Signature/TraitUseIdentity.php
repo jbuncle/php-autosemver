@@ -82,6 +82,15 @@ class TraitUseIdentity implements IdentityKey {
      * @return IdentityKey[]
      */
     private function getNormalisedTraits(): array {
+        if ($this->kind === 'use') {
+            $traits = $this->traits;
+            usort($traits, function (IdentityKey $left, IdentityKey $right): int {
+                return strcmp($left->toIdentityKey(), $right->toIdentityKey());
+            });
+
+            return $traits;
+        }
+
         if ($this->kind !== 'precedence' || count($this->traits) <= 2) {
             return $this->traits;
         }

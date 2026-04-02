@@ -959,6 +959,100 @@ PHP
     assertSameValue('Renaming an implemented contract alias without changing its target should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+function testExtendedParentAliasRenamingDoesNotBumpVersion(): void {
+    $root = createRepository('extends-alias-rename-equivalence', [
+        'src/Child.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\BaseClass as ParentAlias;
+class Child extends ParentAlias {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Child.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\BaseClass as RenamedParent;
+class Child extends RenamedParent {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Renaming a parent-class alias without changing its resolved target should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testGroupedAndUngroupedContractImportsRemainEquivalent(): void {
+    $root = createRepository('grouped-contract-import-equivalence', [
+        'src/Worker.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\PrimaryContract;
+use Vendor\Contract\SecondaryContract;
+class Worker implements PrimaryContract, SecondaryContract {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Worker.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\{PrimaryContract, SecondaryContract};
+class Worker implements PrimaryContract, SecondaryContract {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Grouped and ungrouped contract imports with the same resolved targets should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testTraitUseOrderingDoesNotBumpVersion(): void {
+    $root = createRepository('trait-use-ordering', [
+        'src/Worker.php' => <<<'PHP'
+<?php
+namespace Demo;
+trait FirstTrait {}
+trait SecondTrait {}
+class Worker {
+    use FirstTrait, SecondTrait;
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Worker.php', <<<'PHP'
+<?php
+namespace Demo;
+trait FirstTrait {}
+trait SecondTrait {}
+class Worker {
+    use SecondTrait, FirstTrait;
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Reordering trait use lists without changing the set should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testSplitAndGroupedNamespaceConstantDeclarationsRemainEquivalent(): void {
+    $root = createRepository('namespace-constant-declaration-shape', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+const STATUS = 'ok';
+const MODE = 'safe';
+PHP,
+    ]);
+
+    writeFile($root . '/src/Constants.php', <<<'PHP'
+<?php
+namespace Demo;
+const STATUS = 'ok', MODE = 'safe';
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Split and grouped namespace constant declarations with the same values should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testIncludePathsRestrictTheSurface(): void {
     $root = createRepository('include-paths', [
         'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function stableMethod() {} }\n",
@@ -2388,6 +2482,10 @@ testTypeAliasRenamingDoesNotBumpVersion();
 testConstantAliasRenamingDoesNotBumpVersion();
 testNamespaceConstantAliasRenamingDoesNotBumpVersion();
 testImplementedContractAliasRenamingDoesNotBumpVersion();
+testExtendedParentAliasRenamingDoesNotBumpVersion();
+testGroupedAndUngroupedContractImportsRemainEquivalent();
+testTraitUseOrderingDoesNotBumpVersion();
+testSplitAndGroupedNamespaceConstantDeclarationsRemainEquivalent();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();
 testIncludePathsRestrictTheSurface();
