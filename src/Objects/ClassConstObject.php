@@ -95,6 +95,9 @@ class ClassConstObject implements SignatureModelProvider {
         if ($value instanceof \PhpParser\Node\Expr\UnaryPlus) {
             return '+' . $this->renderValue($value->expr);
         }
+        if ($value instanceof \PhpParser\Node\Expr\BinaryOp) {
+            return $this->renderBinaryExpression($value);
+        }
         if ($value instanceof \PhpParser\Node\Scalar\String_) {
             return "'" . $value->value . "'";
         }
@@ -103,6 +106,49 @@ class ClassConstObject implements SignatureModelProvider {
         }
 
         return (string) $value;
+    }
+
+
+    private function renderBinaryExpression(\PhpParser\Node\Expr\BinaryOp $value): string {
+        $operator = $this->getBinaryOperator($value);
+        if ($operator === null) {
+            return (string) $value;
+        }
+
+        return $this->renderBinaryOperand($value->left) . ' ' . $operator . ' ' . $this->renderBinaryOperand($value->right);
+    }
+
+    private function renderBinaryOperand($value): string {
+        $rendered = $this->renderValue($value);
+        if ($value instanceof \PhpParser\Node\Expr\BinaryOp) {
+            return '(' . $rendered . ')';
+        }
+
+        return $rendered;
+    }
+
+    private function getBinaryOperator(\PhpParser\Node\Expr\BinaryOp $value): ?string {
+        $operators = [
+            \PhpParser\Node\Expr\BinaryOp\Concat::class => '.',
+            \PhpParser\Node\Expr\BinaryOp\Plus::class => '+',
+            \PhpParser\Node\Expr\BinaryOp\Minus::class => '-',
+            \PhpParser\Node\Expr\BinaryOp\Mul::class => '*',
+            \PhpParser\Node\Expr\BinaryOp\Div::class => '/',
+            \PhpParser\Node\Expr\BinaryOp\Mod::class => '%',
+            \PhpParser\Node\Expr\BinaryOp\BitwiseAnd::class => '&',
+            \PhpParser\Node\Expr\BinaryOp\BitwiseOr::class => '|',
+            \PhpParser\Node\Expr\BinaryOp\BitwiseXor::class => '^',
+            \PhpParser\Node\Expr\BinaryOp\ShiftLeft::class => '<<',
+            \PhpParser\Node\Expr\BinaryOp\ShiftRight::class => '>>',
+        ];
+
+        foreach ($operators as $class => $operator) {
+            if ($value instanceof $class) {
+                return $operator;
+            }
+        }
+
+        return null;
     }
 
     private function renderClassName($class): string {

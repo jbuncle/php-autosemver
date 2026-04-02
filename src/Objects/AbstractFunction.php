@@ -138,6 +138,9 @@ abstract class AbstractFunction implements SignatureModelProvider {
         if ($expression instanceof \PhpParser\Node\Expr\UnaryPlus) {
             return '+' . $this->renderDefaultExpression($expression->expr);
         }
+        if ($expression instanceof \PhpParser\Node\Expr\BinaryOp) {
+            return $this->renderBinaryExpression($expression);
+        }
         if ($expression instanceof \PhpParser\Node\Scalar\String_) {
             return "'" . $expression->value . "'";
         }
@@ -146,6 +149,49 @@ abstract class AbstractFunction implements SignatureModelProvider {
         }
 
         return (string) $expression;
+    }
+
+
+    private function renderBinaryExpression(\PhpParser\Node\Expr\BinaryOp $expression): string {
+        $operator = $this->getBinaryOperator($expression);
+        if ($operator === null) {
+            return (string) $expression;
+        }
+
+        return $this->renderBinaryOperand($expression->left) . ' ' . $operator . ' ' . $this->renderBinaryOperand($expression->right);
+    }
+
+    private function renderBinaryOperand($expression): string {
+        $rendered = $this->renderDefaultExpression($expression);
+        if ($expression instanceof \PhpParser\Node\Expr\BinaryOp) {
+            return '(' . $rendered . ')';
+        }
+
+        return $rendered;
+    }
+
+    private function getBinaryOperator(\PhpParser\Node\Expr\BinaryOp $expression): ?string {
+        $operators = [
+            \PhpParser\Node\Expr\BinaryOp\Concat::class => '.',
+            \PhpParser\Node\Expr\BinaryOp\Plus::class => '+',
+            \PhpParser\Node\Expr\BinaryOp\Minus::class => '-',
+            \PhpParser\Node\Expr\BinaryOp\Mul::class => '*',
+            \PhpParser\Node\Expr\BinaryOp\Div::class => '/',
+            \PhpParser\Node\Expr\BinaryOp\Mod::class => '%',
+            \PhpParser\Node\Expr\BinaryOp\BitwiseAnd::class => '&',
+            \PhpParser\Node\Expr\BinaryOp\BitwiseOr::class => '|',
+            \PhpParser\Node\Expr\BinaryOp\BitwiseXor::class => '^',
+            \PhpParser\Node\Expr\BinaryOp\ShiftLeft::class => '<<',
+            \PhpParser\Node\Expr\BinaryOp\ShiftRight::class => '>>',
+        ];
+
+        foreach ($operators as $class => $operator) {
+            if ($expression instanceof $class) {
+                return $operator;
+            }
+        }
+
+        return null;
     }
 
     private function renderDefaultClassName($class): string {

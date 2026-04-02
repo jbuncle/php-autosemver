@@ -1836,6 +1836,55 @@ PHP
     assertSameValue('Changing self:: to static:: in a rendered signature should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testSignatureSearchFormatsBinaryConstantExpressions(): void {
+    $root = createRepository('binary-constant-expressions', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Config;
+use const Vendor\Flags\ENABLED;
+class Values {
+    public const LABEL = Config::DEFAULT_MODE . '-suffix';
+}
+function build($value = Config::DEFAULT_MODE . '-suffix'): void {}
+const STATUS = ENABLED . '-flag';
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Binary constant expressions should preserve nested alias resolution in defaults and constant values.', [
+        "\Demo\STATUS = \Vendor\Flags\ENABLED . '-flag'",
+        '\Demo\Values->__construct()',
+        "\Demo\Values::LABEL = \Vendor\Config::DEFAULT_MODE . '-suffix'",
+        '\Demo\build():void',
+        "\Demo\build(mixed = \Vendor\Config::DEFAULT_MODE . '-suffix'):void",
+        '\Demo\build(mixed):void',
+    ], $signatures);
+}
+
+function testBinaryConstantExpressionChangesAffectDiffs(): void {
+    $root = createRepository('binary-constant-expression-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Config;
+function build($value = Config::DEFAULT_MODE . '-suffix'): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Fallback as Config;
+function build($value = Config::DEFAULT_MODE . '-suffix'): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an alias nested inside a binary constant expression should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsMagicConstants(): void {
     $root = createRepository('magic-constant-rendering', [
         'src/Values.php' => <<<'PHP'
@@ -2780,6 +2829,8 @@ testSignatureSearchPreservesPhp72BuiltinAndContextualTypes();
 testBuiltinAndParentTypeChangesAffectDiffs();
 testSignatureSearchPreservesStaticClassConstantReferences();
 testStaticClassConstantReferenceChangesAffectDiffs();
+testSignatureSearchFormatsBinaryConstantExpressions();
+testBinaryConstantExpressionChangesAffectDiffs();
 testSignatureSearchFormatsRicherDefaultExpressions();
 testDefaultExpressionRenderingAffectsDiffs();
 testSignatureSearchCapturesByReferenceCallables();
