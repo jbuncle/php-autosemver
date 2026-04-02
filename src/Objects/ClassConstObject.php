@@ -95,6 +95,15 @@ class ClassConstObject implements SignatureModelProvider {
         if ($value instanceof \PhpParser\Node\Expr\UnaryPlus) {
             return '+' . $this->renderValue($value->expr);
         }
+        if ($value instanceof \PhpParser\Node\Expr\BooleanNot) {
+            return '!' . $this->renderValue($value->expr);
+        }
+        if ($value instanceof \PhpParser\Node\Expr\BitwiseNot) {
+            return '~' . $this->renderValue($value->expr);
+        }
+        if ($value instanceof \PhpParser\Node\Expr\Ternary) {
+            return $this->renderTernaryExpression($value);
+        }
         if ($value instanceof \PhpParser\Node\Expr\BinaryOp) {
             return $this->renderBinaryExpression($value);
         }
@@ -130,6 +139,7 @@ class ClassConstObject implements SignatureModelProvider {
     private function getBinaryOperator(\PhpParser\Node\Expr\BinaryOp $value): ?string {
         $operators = [
             \PhpParser\Node\Expr\BinaryOp\Concat::class => '.',
+            \PhpParser\Node\Expr\BinaryOp\Coalesce::class => '??',
             \PhpParser\Node\Expr\BinaryOp\Plus::class => '+',
             \PhpParser\Node\Expr\BinaryOp\Minus::class => '-',
             \PhpParser\Node\Expr\BinaryOp\Mul::class => '*',
@@ -149,6 +159,16 @@ class ClassConstObject implements SignatureModelProvider {
         }
 
         return null;
+    }
+
+
+    private function renderTernaryExpression(\PhpParser\Node\Expr\Ternary $value): string {
+        $condition = $this->renderBinaryOperand($value->cond);
+        if ($value->if === null) {
+            return $condition . ' ?: ' . $this->renderBinaryOperand($value->else);
+        }
+
+        return $condition . ' ? ' . $this->renderBinaryOperand($value->if) . ' : ' . $this->renderBinaryOperand($value->else);
     }
 
     private function renderClassName($class): string {

@@ -1885,6 +1885,57 @@ PHP
     assertSameValue('Changing an alias nested inside a binary constant expression should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testSignatureSearchFormatsCoalesceAndUnaryExpressions(): void {
+    $root = createRepository('coalesce-and-unary-expressions', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Config;
+use const Vendor\Flags\ENABLED;
+class Values {
+    public const NEGATED = !ENABLED;
+    public const MASK = ~1;
+}
+function build($value = Config::DEFAULT_MODE ?? 'fallback'): void {}
+const CURRENT = ENABLED ?: 'off';
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Coalesce, shorthand ternary, and unary expressions should preserve resolved values in signatures.', [
+        "\Demo\CURRENT = \Vendor\Flags\ENABLED ?: 'off'",
+        '\Demo\Values->__construct()',
+        '\Demo\Values::MASK = ~1',
+        '\Demo\Values::NEGATED = !\Vendor\Flags\ENABLED',
+        '\Demo\build():void',
+        "\Demo\build(mixed = \Vendor\Config::DEFAULT_MODE ?? 'fallback'):void",
+        '\Demo\build(mixed):void',
+    ], $signatures);
+}
+
+function testCoalesceAndUnaryExpressionChangesAffectDiffs(): void {
+    $root = createRepository('coalesce-and-unary-expression-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Config;
+function build($value = Config::DEFAULT_MODE ?? 'fallback'): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Fallback as Config;
+function build($value = Config::DEFAULT_MODE ?? 'fallback'): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an alias nested inside a coalesce expression should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsMagicConstants(): void {
     $root = createRepository('magic-constant-rendering', [
         'src/Values.php' => <<<'PHP'
@@ -2831,6 +2882,8 @@ testSignatureSearchPreservesStaticClassConstantReferences();
 testStaticClassConstantReferenceChangesAffectDiffs();
 testSignatureSearchFormatsBinaryConstantExpressions();
 testBinaryConstantExpressionChangesAffectDiffs();
+testSignatureSearchFormatsCoalesceAndUnaryExpressions();
+testCoalesceAndUnaryExpressionChangesAffectDiffs();
 testSignatureSearchFormatsRicherDefaultExpressions();
 testDefaultExpressionRenderingAffectsDiffs();
 testSignatureSearchCapturesByReferenceCallables();

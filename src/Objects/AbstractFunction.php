@@ -138,6 +138,15 @@ abstract class AbstractFunction implements SignatureModelProvider {
         if ($expression instanceof \PhpParser\Node\Expr\UnaryPlus) {
             return '+' . $this->renderDefaultExpression($expression->expr);
         }
+        if ($expression instanceof \PhpParser\Node\Expr\BooleanNot) {
+            return '!' . $this->renderDefaultExpression($expression->expr);
+        }
+        if ($expression instanceof \PhpParser\Node\Expr\BitwiseNot) {
+            return '~' . $this->renderDefaultExpression($expression->expr);
+        }
+        if ($expression instanceof \PhpParser\Node\Expr\Ternary) {
+            return $this->renderTernaryExpression($expression);
+        }
         if ($expression instanceof \PhpParser\Node\Expr\BinaryOp) {
             return $this->renderBinaryExpression($expression);
         }
@@ -173,6 +182,7 @@ abstract class AbstractFunction implements SignatureModelProvider {
     private function getBinaryOperator(\PhpParser\Node\Expr\BinaryOp $expression): ?string {
         $operators = [
             \PhpParser\Node\Expr\BinaryOp\Concat::class => '.',
+            \PhpParser\Node\Expr\BinaryOp\Coalesce::class => '??',
             \PhpParser\Node\Expr\BinaryOp\Plus::class => '+',
             \PhpParser\Node\Expr\BinaryOp\Minus::class => '-',
             \PhpParser\Node\Expr\BinaryOp\Mul::class => '*',
@@ -192,6 +202,16 @@ abstract class AbstractFunction implements SignatureModelProvider {
         }
 
         return null;
+    }
+
+
+    private function renderTernaryExpression(\PhpParser\Node\Expr\Ternary $expression): string {
+        $condition = $this->renderBinaryOperand($expression->cond);
+        if ($expression->if === null) {
+            return $condition . ' ?: ' . $this->renderBinaryOperand($expression->else);
+        }
+
+        return $condition . ' ? ' . $this->renderBinaryOperand($expression->if) . ' : ' . $this->renderBinaryOperand($expression->else);
     }
 
     private function renderDefaultClassName($class): string {
