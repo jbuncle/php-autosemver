@@ -1783,6 +1783,59 @@ PHP
     assertSameValue('Adding PHP 7.2 built-in or contextual types should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testSignatureSearchPreservesStaticClassConstantReferences(): void {
+    $root = createRepository('static-class-constant-references', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const PUBLIC_VALUE = 1;
+    public const CURRENT = static::PUBLIC_VALUE;
+}
+function build($value = static::PUBLIC_VALUE): void {}
+const ACTIVE = static::PUBLIC_VALUE;
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Static class constant fetches should be preserved as contextual references in defaults and constant values.', [
+        '\Demo\ACTIVE = static::PUBLIC_VALUE',
+        '\Demo\Values->__construct()',
+        '\Demo\Values::CURRENT = static::PUBLIC_VALUE',
+        '\Demo\Values::PUBLIC_VALUE = 1',
+        '\Demo\build():void',
+        '\Demo\build(mixed = static::PUBLIC_VALUE):void',
+        '\Demo\build(mixed):void',
+    ], $signatures);
+}
+
+function testStaticClassConstantReferenceChangesAffectDiffs(): void {
+    $root = createRepository('static-class-constant-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const PUBLIC_VALUE = 1;
+}
+function build($value = self::PUBLIC_VALUE): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const PUBLIC_VALUE = 1;
+}
+function build($value = static::PUBLIC_VALUE): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing self:: to static:: in a rendered signature should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsMagicConstants(): void {
     $root = createRepository('magic-constant-rendering', [
         'src/Values.php' => <<<'PHP'
@@ -2725,6 +2778,8 @@ testTypedPropertyChangesAffectDiffs();
 testSignatureSearchPreservesProtectedAndStaticPropertyMarkers();
 testSignatureSearchPreservesPhp72BuiltinAndContextualTypes();
 testBuiltinAndParentTypeChangesAffectDiffs();
+testSignatureSearchPreservesStaticClassConstantReferences();
+testStaticClassConstantReferenceChangesAffectDiffs();
 testSignatureSearchFormatsRicherDefaultExpressions();
 testDefaultExpressionRenderingAffectsDiffs();
 testSignatureSearchCapturesByReferenceCallables();

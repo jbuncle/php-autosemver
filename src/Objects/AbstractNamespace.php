@@ -68,6 +68,7 @@ abstract class AbstractNamespace implements SignatureModelProvider, TypeLookup {
             'array',
             'self',
             'parent',
+            'static',
             'iterable',
             'object',
             'void',
