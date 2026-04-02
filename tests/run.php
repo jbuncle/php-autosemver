@@ -1053,6 +1053,103 @@ PHP
     assertSameValue('Split and grouped namespace constant declarations with the same values should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testInterfaceParentAliasRenamingDoesNotBumpVersion(): void {
+    $root = createRepository('interface-parent-alias-rename-equivalence', [
+        'src/Contract.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\BaseContract as ParentAlias;
+interface Contract extends ParentAlias {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Contract.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Contract\BaseContract as RenamedParent;
+interface Contract extends RenamedParent {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Renaming an extended interface alias without changing its resolved target should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testClassConstantFetchAliasRenamingDoesNotBumpVersion(): void {
+    $root = createRepository('class-const-fetch-alias-rename-equivalence', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Alias;
+class Values {
+    public const MODE = Alias::DEFAULT_MODE;
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as ConfigAlias;
+class Values {
+    public const MODE = ConfigAlias::DEFAULT_MODE;
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Renaming a class alias used in a class constant fetch without changing its target should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testGroupedAndUngroupedConstImportsRemainEquivalentInNamespaceConstants(): void {
+    $root = createRepository('grouped-namespace-const-import-equivalence', [
+        'src/Constants.php' => <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Flags\ENABLED;
+const STATUS = ENABLED;
+PHP,
+    ]);
+
+    writeFile($root . '/src/Constants.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Flags\{const ENABLED};
+const STATUS = ENABLED;
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Grouped and ungrouped constant imports used in namespace constants should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testGroupedAndUngroupedConstImportsRemainEquivalentInClassConstants(): void {
+    $root = createRepository('grouped-class-const-import-equivalence', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use const Vendor\Flags\ENABLED;
+class Values {
+    public const STATUS = ENABLED;
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Flags\{const ENABLED};
+class Values {
+    public const STATUS = ENABLED;
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Grouped and ungrouped constant imports used in class constants should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testIncludePathsRestrictTheSurface(): void {
     $root = createRepository('include-paths', [
         'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function stableMethod() {} }\n",
@@ -2486,6 +2583,10 @@ testExtendedParentAliasRenamingDoesNotBumpVersion();
 testGroupedAndUngroupedContractImportsRemainEquivalent();
 testTraitUseOrderingDoesNotBumpVersion();
 testSplitAndGroupedNamespaceConstantDeclarationsRemainEquivalent();
+testInterfaceParentAliasRenamingDoesNotBumpVersion();
+testClassConstantFetchAliasRenamingDoesNotBumpVersion();
+testGroupedAndUngroupedConstImportsRemainEquivalentInNamespaceConstants();
+testGroupedAndUngroupedConstImportsRemainEquivalentInClassConstants();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();
 testIncludePathsRestrictTheSurface();
