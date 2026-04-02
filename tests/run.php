@@ -1150,6 +1150,83 @@ PHP
     assertSameValue('Grouped and ungrouped constant imports used in class constants should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testSplitAndGroupedPropertyDeclarationsRemainEquivalent(): void {
+    $root = createRepository('property-declaration-shape', [
+        'src/Fields.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Fields {
+    public $one;
+    public $two;
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Fields.php', <<<'PHP'
+<?php
+namespace Demo;
+class Fields {
+    public $one, $two;
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Split and grouped property declarations with the same members should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testSplitAndGroupedClassConstantDeclarationsRemainEquivalent(): void {
+    $root = createRepository('class-constant-declaration-shape', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const FIRST = 'a';
+    public const SECOND = 'b';
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const FIRST = 'a', SECOND = 'b';
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Split and grouped class constant declarations with the same values should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
+function testClassConstantOrderingDoesNotBumpVersion(): void {
+    $root = createRepository('class-constant-ordering', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const FIRST = 'a';
+    public const SECOND = 'b';
+}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+class Values {
+    public const SECOND = 'b';
+    public const FIRST = 'a';
+}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Reordering class constants without changing names or values should remain PATCH.', 'PATCH', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testIncludePathsRestrictTheSurface(): void {
     $root = createRepository('include-paths', [
         'src/Foo.php' => "<?php\nnamespace Demo;\nclass Foo { public function stableMethod() {} }\n",
@@ -2587,6 +2664,9 @@ testInterfaceParentAliasRenamingDoesNotBumpVersion();
 testClassConstantFetchAliasRenamingDoesNotBumpVersion();
 testGroupedAndUngroupedConstImportsRemainEquivalentInNamespaceConstants();
 testGroupedAndUngroupedConstImportsRemainEquivalentInClassConstants();
+testSplitAndGroupedPropertyDeclarationsRemainEquivalent();
+testSplitAndGroupedClassConstantDeclarationsRemainEquivalent();
+testClassConstantOrderingDoesNotBumpVersion();
 testGitIgnoreInlineCommentsAreIgnored();
 testRootAnchoredGitIgnorePatternsAreHonoured();
 testIncludePathsRestrictTheSurface();
