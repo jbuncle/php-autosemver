@@ -1985,6 +1985,54 @@ PHP
     assertSameValue('Changing an alias nested inside a comparison expression should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testSignatureSearchFormatsArrayDimExpressions(): void {
+    $root = createRepository('array-dim-expressions', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Config;
+class Values {
+    public const FIRST = Config::MAP['primary'];
+}
+function build($value = Config::MAP['primary']): void {}
+const CURRENT = ['k' => Config::MAP['primary']];
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Array dimension expressions should preserve nested alias resolution in defaults and constant values.', [
+        "\Demo\CURRENT = ['k' => \Vendor\Config::MAP['primary']]",
+        '\Demo\Values->__construct()',
+        "\Demo\Values::FIRST = \Vendor\Config::MAP['primary']",
+        '\Demo\build():void',
+        "\Demo\build(mixed = \Vendor\Config::MAP['primary']):void",
+        '\Demo\build(mixed):void',
+    ], $signatures);
+}
+
+function testArrayDimExpressionChangesAffectDiffs(): void {
+    $root = createRepository('array-dim-expression-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Config;
+function build($value = Config::MAP['primary']): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Fallback as Config;
+function build($value = Config::MAP['primary']): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an alias nested inside an array-dimension expression should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsMagicConstants(): void {
     $root = createRepository('magic-constant-rendering', [
         'src/Values.php' => <<<'PHP'
@@ -2935,6 +2983,8 @@ testSignatureSearchFormatsCoalesceAndUnaryExpressions();
 testCoalesceAndUnaryExpressionChangesAffectDiffs();
 testSignatureSearchFormatsBooleanAndComparisonExpressions();
 testBooleanAndComparisonExpressionChangesAffectDiffs();
+testSignatureSearchFormatsArrayDimExpressions();
+testArrayDimExpressionChangesAffectDiffs();
 testSignatureSearchFormatsRicherDefaultExpressions();
 testDefaultExpressionRenderingAffectsDiffs();
 testSignatureSearchCapturesByReferenceCallables();

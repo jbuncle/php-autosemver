@@ -132,6 +132,9 @@ abstract class AbstractFunction implements SignatureModelProvider {
         if ($expression instanceof \PhpParser\Node\Expr\ClassConstFetch) {
             return $this->renderDefaultClassName($expression->class) . '::' . $expression->name;
         }
+        if ($expression instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            return $this->renderArrayDimFetch($expression);
+        }
         if ($expression instanceof \PhpParser\Node\Expr\UnaryMinus) {
             return '-' . $this->renderDefaultExpression($expression->expr);
         }
@@ -160,6 +163,22 @@ abstract class AbstractFunction implements SignatureModelProvider {
         return (string) $expression;
     }
 
+
+
+    private function renderArrayDimFetch(\PhpParser\Node\Expr\ArrayDimFetch $expression): string {
+        $dimension = $expression->dim === null ? '' : $this->renderDefaultExpression($expression->dim);
+
+        return $this->renderArrayDimTarget($expression->var) . '[' . $dimension . ']';
+    }
+
+    private function renderArrayDimTarget($expression): string {
+        $rendered = $this->renderDefaultExpression($expression);
+        if ($expression instanceof \PhpParser\Node\Expr\BinaryOp || $expression instanceof \PhpParser\Node\Expr\Ternary) {
+            return '(' . $rendered . ')';
+        }
+
+        return $rendered;
+    }
 
     private function renderBinaryExpression(\PhpParser\Node\Expr\BinaryOp $expression): string {
         $operator = $this->getBinaryOperator($expression);

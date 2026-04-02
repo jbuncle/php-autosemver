@@ -68,6 +68,9 @@ class NamespaceConstObject implements SignatureModelProvider {
         if ($value instanceof \PhpParser\Node\Expr\ClassConstFetch) {
             return $this->renderClassName($value->class) . '::' . $value->name;
         }
+        if ($value instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            return $this->renderArrayDimFetch($value);
+        }
         if ($value instanceof \PhpParser\Node\Expr\UnaryMinus) {
             return '-' . $this->renderValue($value->expr);
         }
@@ -96,6 +99,22 @@ class NamespaceConstObject implements SignatureModelProvider {
         return (string) $value;
     }
 
+
+
+    private function renderArrayDimFetch(\PhpParser\Node\Expr\ArrayDimFetch $value): string {
+        $dimension = $value->dim === null ? '' : $this->renderValue($value->dim);
+
+        return $this->renderArrayDimTarget($value->var) . '[' . $dimension . ']';
+    }
+
+    private function renderArrayDimTarget($value): string {
+        $rendered = $this->renderValue($value);
+        if ($value instanceof \PhpParser\Node\Expr\BinaryOp || $value instanceof \PhpParser\Node\Expr\Ternary) {
+            return '(' . $rendered . ')';
+        }
+
+        return $rendered;
+    }
 
     private function renderBinaryExpression(\PhpParser\Node\Expr\BinaryOp $value): string {
         $operator = $this->getBinaryOperator($value);
