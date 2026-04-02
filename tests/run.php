@@ -1936,6 +1936,55 @@ PHP
     assertSameValue('Changing an alias nested inside a coalesce expression should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
 }
 
+
+function testSignatureSearchFormatsBooleanAndComparisonExpressions(): void {
+    $root = createRepository('boolean-and-comparison-expressions', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Config;
+use const Vendor\Flags\ENABLED;
+class Values {
+    public const ENABLED_AND_MATCHED = ENABLED && (Config::DEFAULT_MODE === 'prod');
+}
+function build($value = Config::DEFAULT_MODE === 'prod'): void {}
+const READY = ENABLED || false;
+PHP,
+    ]);
+
+    $signatures = getSignaturesForFiles($root, ['src/Values.php']);
+    assertSameList('Boolean and comparison expressions should preserve nested alias resolution in defaults and constant values.', [
+        '\Demo\READY = \Vendor\Flags\ENABLED || false',
+        '\Demo\Values->__construct()',
+        "\Demo\Values::ENABLED_AND_MATCHED = \Vendor\Flags\ENABLED && (\Vendor\Config::DEFAULT_MODE === 'prod')",
+        '\Demo\build():void',
+        "\Demo\build(mixed = \Vendor\Config::DEFAULT_MODE === 'prod'):void",
+        '\Demo\build(mixed):void',
+    ], $signatures);
+}
+
+function testBooleanAndComparisonExpressionChangesAffectDiffs(): void {
+    $root = createRepository('boolean-and-comparison-expression-diff', [
+        'src/Values.php' => <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Config as Config;
+function build($value = Config::DEFAULT_MODE === 'prod'): void {}
+PHP,
+    ]);
+
+    writeFile($root . '/src/Values.php', <<<'PHP'
+<?php
+namespace Demo;
+use Vendor\Fallback as Config;
+function build($value = Config::DEFAULT_MODE === 'prod'): void {}
+PHP
+    );
+
+    $diff = new SemVerDiff($root, [], []);
+    assertSameValue('Changing an alias nested inside a comparison expression should affect the diff result.', 'MAJOR', $diff->diff('HEAD', 'WC')->getIncrement());
+}
+
 function testSignatureSearchFormatsMagicConstants(): void {
     $root = createRepository('magic-constant-rendering', [
         'src/Values.php' => <<<'PHP'
@@ -2884,6 +2933,8 @@ testSignatureSearchFormatsBinaryConstantExpressions();
 testBinaryConstantExpressionChangesAffectDiffs();
 testSignatureSearchFormatsCoalesceAndUnaryExpressions();
 testCoalesceAndUnaryExpressionChangesAffectDiffs();
+testSignatureSearchFormatsBooleanAndComparisonExpressions();
+testBooleanAndComparisonExpressionChangesAffectDiffs();
 testSignatureSearchFormatsRicherDefaultExpressions();
 testDefaultExpressionRenderingAffectsDiffs();
 testSignatureSearchCapturesByReferenceCallables();
